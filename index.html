@@ -160,6 +160,7 @@
             border-radius: 4px;
             padding: 20px;
             position: relative;
+            overflow: hidden; /* 枠外に伸びる破線を隠す */
         }
 
         .chart-header {
@@ -194,21 +195,23 @@
             align-items: flex-end;
             margin-bottom: 10px;
             width: 100%;
+            height: 180px; /* 固定高さを持たせる */
+            position: relative;
         }
 
         .y-axis {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 150px;
+            height: 100%;
             padding-right: 8px;
             font-size: 0.85rem;
             color: #666;
             text-align: right;
             border-right: 1px solid #ccc;
-            padding-bottom: 26px; /* ラベルの高さ分を確保 */
             min-width: 35px;
             position: relative;
+            z-index: 0;
         }
         
         .y-axis-ticks {
@@ -223,6 +226,20 @@
             line-height: 1;
             width: 100%;
         }
+        
+        /* 破線（グリッド線）の追加 */
+        .y-tick::after {
+            content: "";
+            position: absolute;
+            left: 100%;
+            margin-left: 8px; /* 目盛りとグラフの間の余白 */
+            width: 2000px; /* 確実にはみ出す長さ（親でhidden） */
+            border-top: 1px dashed #ccc;
+            top: 50%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
         /* 0% は一番下 */
         .y-tick.zero {
             bottom: 0;
@@ -234,30 +251,33 @@
             align-items: flex-end;
             justify-content: space-between;
             flex: 1;
-            padding-bottom: 10px;
+            height: 100%;
             border-bottom: 1px solid #ccc;
-            /* 画面に合わせるためギャップを小さくし、あふれないように */
             gap: 1px;
             min-width: 0; 
+            z-index: 1; /* 破線より手前に */
         }
 
         .bar-wrapper {
             display: flex;
             flex-direction: column;
+            justify-content: flex-end;
             align-items: center;
             flex: 1;
-            min-width: 0; /* flexアイテムが縮めるように */
+            min-width: 0; 
+            height: 100%;
         }
 
         .bar {
             width: 80%;
             max-width: 25px;
-            height: 150px;
+            height: calc(100% - 26px); /* ラベルの高さを引いた分 */
             background-color: #eee;
             border-radius: 4px 4px 0 0;
             position: relative;
             display: flex;
             align-items: flex-end;
+            z-index: 2; /* 背景の破線を隠す */
         }
 
         .bar-fill {
@@ -269,10 +289,12 @@
         }
 
         .bar-label {
-            margin-top: 8px;
+            margin-top: 6px;
             font-size: 0.8rem;
             font-weight: bold;
             color: #555;
+            height: 20px;
+            line-height: 20px;
         }
 
         /* --- モーダル (フルスクリーングラフ) のスタイル --- */
@@ -323,18 +345,25 @@
             max-width: 1200px;
         }
         .expanded-chart-wrapper .y-axis {
-            height: 100%;
             font-size: 1.1rem;
             min-width: 50px;
             padding-right: 15px;
         }
+        .expanded-chart-wrapper .y-axis-ticks {
+            bottom: 34px; /* ラベルの拡大に合わせて調整 */
+        }
+        .expanded-chart-wrapper .y-tick::after {
+            margin-left: 15px;
+        }
         .expanded-chart-wrapper .bar {
-            height: 100%;
+            height: calc(100% - 34px); /* ラベルの拡大に合わせて調整 */
             max-width: 50px;
         }
         .expanded-chart-wrapper .bar-label {
             font-size: 1.2rem;
-            margin-top: 15px;
+            margin-top: 10px;
+            height: 24px;
+            line-height: 24px;
         }
 
         /* スマホ等でのメディアクエリ */
