@@ -143,10 +143,82 @@
             margin-top: 5px;
         }
 
+        .char-percent {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .chart-section {
+            margin-top: 30px;
+            background-color: #fafafa;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 20px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .chart-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 200px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+            overflow-x: auto;
+            gap: 5px;
+        }
+
+        .bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 20px;
+        }
+
+        .bar {
+            width: 100%;
+            max-width: 30px;
+            height: 150px;
+            background-color: #eee;
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .bar-fill {
+            width: 100%;
+            background-color: #4CAF50;
+            border-radius: 4px 4px 0 0;
+            height: 0%;
+            transition: height 0.3s ease;
+        }
+
+        .bar-label {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #555;
+        }
+
         @media (max-width: 480px) {
             .char-grid {
                 grid-template-columns: repeat(4, 1fr);
                 gap: 10px;
+            }
+            .chart-container {
+                justify-content: flex-start;
+            }
+            .bar-wrapper {
+                min-width: 25px;
             }
         }
     </style>
@@ -156,20 +228,34 @@
             const clearBtn = document.getElementById('clear-btn');
             const totalCountDisplay = document.getElementById('total-count');
             const charGrid = document.getElementById('char-grid');
+            const chartContainer = document.getElementById('chart-container');
 
-            // Initialize the A-Z grid
+            // Initialize the A-Z grid and chart
             const charCounts = {};
             for (let i = 65; i <= 90; i++) {
                 const char = String.fromCharCode(i);
                 charCounts[char] = 0;
                 
+                // Create grid item
                 const item = document.createElement('div');
                 item.className = 'char-item';
                 item.innerHTML = `
                     <span class="char-letter">${char}</span>
                     <span class="char-count" id="count-${char}">0</span>
+                    <span class="char-percent" id="percent-${char}">0.0%</span>
                 `;
                 charGrid.appendChild(item);
+
+                // Create chart bar
+                const barWrapper = document.createElement('div');
+                barWrapper.className = 'bar-wrapper';
+                barWrapper.innerHTML = `
+                    <div class="bar">
+                        <div class="bar-fill" id="bar-fill-${char}"></div>
+                    </div>
+                    <span class="bar-label">${char}</span>
+                `;
+                chartContainer.appendChild(barWrapper);
             }
 
             // Function to calculate and update counts
@@ -193,11 +279,28 @@
                     }
                 }
 
+                // Find max frequency for chart scaling
+                let maxCount = 0;
+                for (let i = 65; i <= 90; i++) {
+                    const char = String.fromCharCode(i);
+                    if (charCounts[char] > maxCount) {
+                        maxCount = charCounts[char];
+                    }
+                }
+
                 // Update UI
                 totalCountDisplay.textContent = total;
                 for (let i = 65; i <= 90; i++) {
                     const char = String.fromCharCode(i);
-                    document.getElementById(`count-${char}`).textContent = charCounts[char];
+                    const count = charCounts[char];
+                    const percent = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
+                    
+                    document.getElementById(`count-${char}`).textContent = count;
+                    document.getElementById(`percent-${char}`).textContent = `${percent}%`;
+
+                    // Update bar height relative to maxCount (largest value is 100% height)
+                    const barHeight = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                    document.getElementById(`bar-fill-${char}`).style.height = `${barHeight}%`;
                 }
             };
 
@@ -220,7 +323,6 @@
         <label for="text-input">入力欄</label>
         <textarea id="text-input" placeholder="ここにテキストを入力・貼り付けしてください"></textarea>
     </div>
-
     <div class="controls">
         <button id="clear-btn" type="button">クリア</button>
     </div>
@@ -233,6 +335,13 @@
 
         <div class="char-grid" id="char-grid">
             <!-- A-Z items will be generated by JS -->
+        </div>
+    </div>
+
+    <div class="chart-section" id="chart-section">
+        <div class="chart-title">出現頻度グラフ</div>
+        <div class="chart-container" id="chart-container">
+            <!-- Bars will be generated by JS -->
         </div>
     </div>
 </body>
