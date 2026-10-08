@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アルファベットカウンター</title>
+    <style>
+        :root {
+            --primary-color: #333;
+            --bg-color: #ffffff;
+            --border-color: #ccc;
+            --btn-bg: #f0f0f0;
+            --btn-hover: #e0e0e0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+        }
+
+        p {
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #666;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 1rem;
+            background-color: var(--btn-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--btn-hover);
+        }
+
+        button:focus {
+            outline: 2px solid #666;
+            outline-offset: 2px;
+        }
+
+        .result-section {
+            background-color: #fafafa;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 20px;
+        }
+
+        .total-display {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .total-label {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .total-number {
+            font-size: 3rem;
+            font-weight: bold;
+            display: block;
+            line-height: 1;
+            margin-top: 10px;
+        }
+
+        .char-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 15px;
+            text-align: center;
+        }
+
+        .char-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .char-letter {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #555;
+        }
+
+        .char-count {
+            font-size: 1.1rem;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 480px) {
+            .char-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+            }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const textInput = document.getElementById('text-input');
+            const clearBtn = document.getElementById('clear-btn');
+            const totalCountDisplay = document.getElementById('total-count');
+            const charGrid = document.getElementById('char-grid');
+
+            // Initialize the A-Z grid
+            const charCounts = {};
+            for (let i = 65; i <= 90; i++) {
+                const char = String.fromCharCode(i);
+                charCounts[char] = 0;
+                
+                const item = document.createElement('div');
+                item.className = 'char-item';
+                item.innerHTML = `
+                    <span class="char-letter">${char}</span>
+                    <span class="char-count" id="count-${char}">0</span>
+                `;
+                charGrid.appendChild(item);
+            }
+
+            // Function to calculate and update counts
+            const updateCounts = () => {
+                const text = textInput.value;
+                let total = 0;
+                
+                // Reset counts
+                for (let i = 65; i <= 90; i++) {
+                    charCounts[String.fromCharCode(i)] = 0;
+                }
+
+                // Count alphabets
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    // Check if it's a half-width alphabet using regex
+                    if (/^[a-zA-Z]$/.test(char)) {
+                        total++;
+                        const upperChar = char.toUpperCase();
+                        charCounts[upperChar]++;
+                    }
+                }
+
+                // Update UI
+                totalCountDisplay.textContent = total;
+                for (let i = 65; i <= 90; i++) {
+                    const char = String.fromCharCode(i);
+                    document.getElementById(`count-${char}`).textContent = charCounts[char];
+                }
+            };
+
+            // Event listeners
+            textInput.addEventListener('input', updateCounts);
+            
+            clearBtn.addEventListener('click', () => {
+                textInput.value = '';
+                updateCounts();
+                textInput.focus();
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>アルファベットカウンター</h1>
+    <p>文章を入力すると、アルファベットの数を自動で集計します。</p>
+
+    <div class="input-group">
+        <label for="text-input">入力欄</label>
+        <textarea id="text-input" placeholder="ここにテキストを入力・貼り付けしてください"></textarea>
+    </div>
+
+    <div class="controls">
+        <button id="clear-btn" type="button">クリア</button>
+    </div>
+
+    <div class="result-section">
+        <div class="total-display">
+            <span class="total-label">合計</span>
+            <span class="total-number" id="total-count">0</span>
+        </div>
+
+        <div class="char-grid" id="char-grid">
+            <!-- A-Z items will be generated by JS -->
+        </div>
+    </div>
+</body>
+</html>

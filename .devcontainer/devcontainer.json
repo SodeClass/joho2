@@ -1,0 +1,14 @@
+{
+    "name": "PHP Dev Environment",
+    "image": "mcr.microsoft.com/devcontainers/php:8.3",
+    "postCreateCommand": "mkdir -p ~/.ssh && if [ ! -z \"$SFTP_PRIVATE_KEY\" ]; then echo \"$SFTP_PRIVATE_KEY\" > ~/.ssh/exgyoza.key && chmod 600 ~/.ssh/exgyoza.key; fi && mkdir -p ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings && echo \"{\\\"apiProvider\\\":\\\"gemini\\\",\\\"apiModelId\\\":\\\"gemini-3.0-flash\\\",\\\"apiKey\\\":\\\"$GEMINI_API_KEY\\\",\\\"customInstructions\\\":\\\"$(cat .devcontainer/baito-chan.md | tr -d '\\n' | tr -d '\\r')\\\"}\" > ~/.vscode-server/data/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "saoudrizwan.claude-dev",
+                "Natizyskunk.sftp"
+            ]
+        }
+    }
+}
+
