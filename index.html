@@ -272,20 +272,19 @@
             width: 80%;
             max-width: 25px;
             height: calc(100% - 26px); /* ラベルの高さを引いた分 */
-            background-color: #eee;
-            border-radius: 4px 4px 0 0;
+            background-color: transparent; /* 背景を透明にして破線を見せる */
             position: relative;
             display: flex;
             align-items: flex-end;
-            z-index: 2; /* 背景の破線を隠す */
+            z-index: 2; 
         }
 
         .bar-fill {
             width: 100%;
             background-color: #4CAF50;
-            border-radius: 4px 4px 0 0;
             height: 0%;
             transition: height 0.3s ease;
+            /* 角を直角にするため border-radius を削除 */
         }
 
         .bar-label {
