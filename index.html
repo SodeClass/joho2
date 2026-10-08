@@ -159,103 +159,93 @@
             border: 1px solid var(--border-color);
             border-radius: 4px;
             padding: 20px;
-            position: relative;
-            overflow: hidden; /* 枠外に伸びる破線を隠す */
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
         }
 
         .chart-title {
             font-size: 1.3rem;
             font-weight: bold;
-            margin: 0;
+            margin-bottom: 20px;
+            text-align: center;
         }
-
-        .expand-btn {
-            background-color: #fff;
-            border: 1px solid #999;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: background-color 0.2s;
-        }
-        .expand-btn:hover { background-color: #eee; }
 
         .chart-layout {
             display: flex;
-            align-items: flex-end;
-            margin-bottom: 10px;
             width: 100%;
-            height: 180px; /* 固定高さを持たせる */
-            position: relative;
+            height: 200px; /* 全体の高さ */
         }
 
         .y-axis {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 100%;
-            padding-right: 8px;
+            width: 40px;
+            position: relative;
             font-size: 0.85rem;
             color: #666;
             text-align: right;
+            padding-right: 8px;
+            margin-bottom: 25px; /* 下のラベル分を空ける */
             border-right: 1px solid #ccc;
-            min-width: 35px;
-            position: relative;
-            z-index: 0;
         }
-        
+
         .y-axis-ticks {
             position: absolute;
-            top: 0; bottom: 26px; right: 8px; left: 0;
+            top: 0;
+            bottom: 0;
+            right: 8px;
+            left: 0;
         }
-        
+
         .y-tick {
             position: absolute;
             right: 0;
-            transform: translateY(-50%);
+            transform: translateY(50%); /* 中心を下端に合わせる */
             line-height: 1;
             width: 100%;
-        }
-        
-        /* 破線（グリッド線）の追加 */
-        .y-tick::after {
-            content: "";
-            position: absolute;
-            left: 100%;
-            margin-left: 8px; /* 目盛りとグラフの間の余白 */
-            width: 2000px; /* 確実にはみ出す長さ（親でhidden） */
-            border-top: 1px dashed #ccc;
-            top: 50%;
-            z-index: 0;
-            pointer-events: none;
         }
 
         /* 0% は一番下 */
         .y-tick.zero {
             bottom: 0;
-            transform: translateY(50%);
+        }
+
+        .chart-main {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 25px; /* ラベルのスペース */
+        }
+        
+        /* 破線の背景レイヤー */
+        .grid-lines {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .grid-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border-top: 1px dashed #ccc;
+            z-index: 1;
+        }
+        
+        /* 実線（底面）*/
+        .grid-line.base {
+            border-top: 1px solid #ccc;
+            bottom: 0;
         }
 
         .chart-container {
+            flex: 1;
             display: flex;
             align-items: flex-end;
             justify-content: space-between;
-            flex: 1;
-            height: 100%;
-            border-bottom: 1px solid #ccc;
-            gap: 1px;
-            min-width: 0; 
-            z-index: 1; /* 破線より手前に */
+            padding-left: 10px; /* Aの左側のゆとり */
+            z-index: 2; /* 破線より手前に */
         }
 
         .bar-wrapper {
@@ -264,19 +254,18 @@
             justify-content: flex-end;
             align-items: center;
             flex: 1;
-            min-width: 0; 
             height: 100%;
+            min-width: 0; 
+            position: relative;
         }
 
         .bar {
             width: 80%;
             max-width: 25px;
-            height: calc(100% - 26px); /* ラベルの高さを引いた分 */
-            background-color: transparent; /* 背景を透明にして破線を見せる */
-            position: relative;
+            height: 100%;
+            background-color: transparent;
             display: flex;
             align-items: flex-end;
-            z-index: 2; 
         }
 
         .bar-fill {
@@ -284,11 +273,11 @@
             background-color: #4CAF50;
             height: 0%;
             transition: height 0.3s ease;
-            /* 角を直角にするため border-radius を削除 */
         }
 
         .bar-label {
-            margin-top: 6px;
+            position: absolute;
+            bottom: -25px; /* 実線の下に配置 */
             font-size: 0.8rem;
             font-weight: bold;
             color: #555;
@@ -296,76 +285,6 @@
             line-height: 20px;
         }
 
-        /* --- モーダル (フルスクリーングラフ) のスタイル --- */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #fff; /* 背景を白に塗りつぶす */
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s;
-            overflow: hidden;
-        }
-        .modal-overlay.active {
-            display: block;
-            opacity: 1;
-        }
-        
-        .modal-close-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1010;
-            background: #f0f0f0;
-            border: 1px solid #999;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        /* 拡大時にグラフ自体をコピーしてここに配置するコンテナ */
-        .expanded-chart-wrapper {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            box-sizing: border-box;
-        }
-
-        /* 複製されたグラフのスタイル */
-        .expanded-chart-wrapper .chart-layout {
-            width: 100%;
-            height: 80%; /* 縦方向に大きく */
-            max-width: 1200px;
-        }
-        .expanded-chart-wrapper .y-axis {
-            font-size: 1.1rem;
-            min-width: 50px;
-            padding-right: 15px;
-        }
-        .expanded-chart-wrapper .y-axis-ticks {
-            bottom: 34px; /* ラベルの拡大に合わせて調整 */
-        }
-        .expanded-chart-wrapper .y-tick::after {
-            margin-left: 15px;
-        }
-        .expanded-chart-wrapper .bar {
-            height: calc(100% - 34px); /* ラベルの拡大に合わせて調整 */
-            max-width: 50px;
-        }
-        .expanded-chart-wrapper .bar-label {
-            font-size: 1.2rem;
-            margin-top: 10px;
-            height: 24px;
-            line-height: 24px;
-        }
-
-        /* スマホ等でのメディアクエリ */
         @media (max-width: 600px) {
             .char-grid {
                 grid-template-columns: repeat(4, 1fr);
@@ -376,36 +295,8 @@
             }
             .y-axis {
                 font-size: 0.7rem;
-                min-width: 25px;
+                width: 30px;
                 padding-right: 4px;
-            }
-            /* 縦持ちの場合、モーダル内のグラフを90度回転 */
-            @media (orientation: portrait) {
-                .expanded-chart-wrapper {
-                    padding: 0;
-                }
-                .expanded-chart-wrapper .chart-layout {
-                    /* 回転させるため、widthとheightを反転させたサイズにする */
-                    width: 90vh; 
-                    height: 80vw;
-                    transform: rotate(90deg);
-                    transform-origin: center center;
-                }
-                /* 回転時に閉じるボタンが被らないように */
-                .modal-close-btn {
-                    top: auto;
-                    bottom: 30px;
-                    right: 30px;
-                }
-            }
-            /* 横持ちの場合はそのまま全画面 */
-            @media (orientation: landscape) {
-                .expanded-chart-wrapper {
-                    padding: 20px;
-                }
-                .expanded-chart-wrapper .chart-layout {
-                    height: 85%;
-                }
             }
         }
     </style>
@@ -419,11 +310,11 @@
             const yAxisTicks = document.getElementById('y-axis-ticks');
             
             // モーダル関連
-            const expandBtn = document.getElementById('expand-btn');
-            const modalOverlay = document.getElementById('modal-overlay');
-            const modalCloseBtn = document.getElementById('modal-close-btn');
-            const originalChartLayout = document.getElementById('original-chart-layout');
-            const expandedChartWrapper = document.getElementById('expanded-chart-wrapper');
+            
+            
+            
+            
+            
 
             // Initialize the A-Z grid and chart
             const charCounts = {};
@@ -455,6 +346,7 @@
             
             // Y軸の初期化 (0%のみ)
             yAxisTicks.innerHTML = `<div class="y-tick zero">0%</div>`;
+            document.getElementById('grid-lines').innerHTML = `<div class="grid-line base" style="bottom: 0%"></div>`;
 
             // Function to calculate and update counts
             const updateCounts = () => {
@@ -497,14 +389,17 @@
                     axisMax = Math.ceil(maxPercent / 2) * 2;
                 }
                 
-                // 目盛りの再構築
+                // 目盛りと破線の再構築
                 let ticksHTML = `<div class="y-tick zero">0%</div>`;
+                let gridsHTML = `<div class="grid-line base" style="bottom: 0%"></div>`; // 実線部分（底）
+                
                 for (let tick = 2; tick <= axisMax; tick += 2) {
-                    // bottomの割合(%)を計算 (axisMaxが100%の高さ)
                     const posPercent = (tick / axisMax) * 100;
                     ticksHTML += `<div class="y-tick" style="bottom: ${posPercent}%">${tick}%</div>`;
+                    gridsHTML += `<div class="grid-line" style="bottom: ${posPercent}%"></div>`;
                 }
                 yAxisTicks.innerHTML = ticksHTML;
+                document.getElementById('grid-lines').innerHTML = gridsHTML;
 
                 // Update UI
                 totalCountDisplay.textContent = total;
@@ -526,21 +421,10 @@
                     }
                 }
                 
-                // モーダルが開いている場合、クローンされたDOMの中身も更新する
-                if (modalOverlay.classList.contains('active')) {
-                    syncExpandedChart();
-                }
+                
             };
             
-            const syncExpandedChart = () => {
-                // 現在のグラフDOMをクローンしてモーダル内に配置
-                expandedChartWrapper.innerHTML = '';
-                // IDの重複を防ぐため、クローンしたものからはIDを削除するか無視する運用
-                const clonedNode = originalChartLayout.cloneNode(true);
-                clonedNode.removeAttribute('id');
-                // クローン内のバー要素のアニメーションを無効化（瞬時に反映）またはそのまま
-                expandedChartWrapper.appendChild(clonedNode);
-            };
+            
 
             // Event listeners
             textInput.addEventListener('input', updateCounts);
@@ -551,18 +435,9 @@
                 textInput.focus();
             });
             
-            // 拡大表示ボタンの挙動
-            expandBtn.addEventListener('click', () => {
-                syncExpandedChart();
-                modalOverlay.classList.add('active');
-                document.body.style.overflow = 'hidden'; // 背後のスクロールを止める
-            });
             
-            // 閉じるボタンの挙動
-            modalCloseBtn.addEventListener('click', () => {
-                modalOverlay.classList.remove('active');
-                document.body.style.overflow = '';
-            });
+            
+            
         });
     </script>
 </head>
@@ -590,30 +465,23 @@
     </div>
 
     <div class="chart-section" id="chart-section">
-        <div class="chart-header">
-            <div class="chart-title">出現頻度グラフ</div>
-            <button class="expand-btn" id="expand-btn">
-                <span>🔍 拡大表示</span>
-            </button>
-        </div>
-        <div class="chart-layout" id="original-chart-layout">
+        <div class="chart-title">出現頻度グラフ</div>
+        <div class="chart-layout">
             <div class="y-axis">
                 <div class="y-axis-ticks" id="y-axis-ticks">
                     <!-- Ticks will be generated by JS -->
                 </div>
             </div>
-            <div class="chart-container" id="chart-container">
-                <!-- Bars will be generated by JS -->
+            <div class="chart-main">
+                <div class="grid-lines" id="grid-lines">
+                    <!-- Grid lines will be generated by JS -->
+                </div>
+                <div class="chart-container" id="chart-container">
+                    <!-- Bars will be generated by JS -->
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal for Expanded Chart -->
-    <div class="modal-overlay" id="modal-overlay">
-        <button class="modal-close-btn" id="modal-close-btn">閉じる ✖</button>
-        <div class="expanded-chart-wrapper" id="expanded-chart-wrapper">
-            <!-- グラフがここにクローンされます -->
-        </div>
-    </div>
-</body>
+    </body>
 </html>
