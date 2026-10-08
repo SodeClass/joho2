@@ -1,5 +1,5 @@
-# 資料の概要
+# ページリンク
 
-| フォルダ | 説明 |
+| ページ名 | 説明 |
 |---|---|
-| [abcounter](./abcounter/) | アルファベットの合計と出現回数を数えるサイト |
+| [abcounter](https://sodeclass.github.io/joho2/abcounter/) | アルファベットの合計と出現回数を数えるページ |
