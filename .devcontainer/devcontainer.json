@@ -6,7 +6,8 @@
         "vscode": {
             "extensions": [
                 "saoudrizwan.claude-dev",
-                "Natizyskunk.sftp"
+                "Natizyskunk.sftp",
+                "ritwickdey.liveserver"
             ]
         }
     }
