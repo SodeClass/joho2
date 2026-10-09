@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>青空文庫テキストマイニング</title>
+
+    <!-- CDN Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+
+    <link rel="stylesheet" href="./style.css?v=3">
+    <script src="./app.js?v=3" defer></script>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>青空文庫テキストマイニング</h1>
+        <div id="dic-badge" class="dic-badge">
+            <span id="dic-badge-dot" class="badge-dot"></span>
+            <span id="dic-badge-text">辞書ロード中...</span>
+        </div>
+    </div>
+    <p>青空文庫の作品zipやtxtファイルから単語出現頻度を形態素解析でカウントし、ランキング表と横棒グラフで可視化します。</p>
+
+    <!-- 入力カード（テキスト入力欄なし・ファイルアップロード専用） -->
+    <div class="input-card">
+        <!-- ファイルアップロード領域 -->
+        <div class="drop-zone" id="drop-zone">
+            <span class="drop-zone-icon">📁</span>
+            <div class="drop-zone-text" id="drop-zone-text">青空文庫の <strong>zipファイル</strong> または <strong>txtファイル</strong> を選択</div>
+            <div class="drop-zone-hint">（Shift_JIS 自動対応 / クリックまたはドラッグ＆ドロップ）</div>
+            <input type="file" id="file-input" accept=".zip,.txt">
+        </div>
+        <div id="file-info" class="file-info" style="display: none;">
+            選択中: <strong id="file-name-display"></strong>
+        </div>
+
+        <!-- 品詞チェックボックス -->
+        <div class="pos-options">
+            <span class="pos-title">集計対象の品詞：</span>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-noun" checked>
+                <span class="tag-label noun-label">名詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-verb" checked>
+                <span class="tag-label verb-label">動詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-adj" checked>
+                <span class="tag-label adj-label">形容詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-pronoun" checked>
+                <span class="tag-label pronoun-label">代名詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-adverb" checked>
+                <span class="tag-label adverb-label">副詞</span>
+            </label>
+        </div>
+
+        <!-- コントロールエリア（左: 解析するボタン / 右: 解析の様子を見るスイッチ） -->
+        <div class="control-panel">
+            <div class="action-left">
+                <button type="button" id="analyze-btn" class="analyze-btn">解析する</button>
+            </div>
+
+            <div class="switch-right">
+                <label class="big-switch-label" for="live-mode-toggle">
+                    <span class="switch-title">解析の様子を見る</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="live-mode-toggle">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+    <!-- 辞書ロードステータス -->
+    <div class="status-box" id="status-box">
+        <div class="spinner" id="status-spinner"></div>
+        <div class="status-content">
+            <div class="status-text" id="status-text">kuromoji 辞書データを準備中...</div>
+            <div class="status-progress-wrap" id="status-progress-wrap">
+                <div class="status-progress-bar" id="status-progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 解析の様子可視化パネル -->
+    <div class="live-panel" id="live-panel">
+        <div class="live-header">
+            <div class="live-status-left">
+                <span class="live-badge" id="live-badge">解析アニメーション中</span>
+                <span class="live-progress-info" id="live-progress-text">0%</span>
+            </div>
+            
+            <!-- スピード調整スライダー & スキップボタン -->
+            <div class="live-controls-right">
+                <div class="speed-control">
+                    <label for="speed-slider">速度:</label>
+                    <input type="range" id="speed-slider" min="1" max="5" value="3" step="1">
+                    <span id="speed-display">標準</span>
+                </div>
+                <button type="button" id="skip-btn" class="skip-btn">スキップ</button>
+            </div>
+        </div>
+
+        <div class="live-progress-track">
+            <div class="live-progress-fill" id="live-progress-fill"></div>
+        </div>
+
+        <!-- 1. 元のデータを1行表示 -->
+        <div class="step-container">
+            <div class="step-label">① 元の文章（1行）：</div>
+            <div class="current-line-box" id="current-line-box">（待機中）</div>
+        </div>
+
+        <!-- 2. 形態素に分ける（スラッシュ区切り）＆ 3. 対象品詞以外は打ち消し線 -->
+        <div class="step-container">
+            <div class="step-label">② 形態素分解（スラッシュ区切り）＆ 対象品詞の抽出（対象外は打ち消し線）：</div>
+            <div class="tokenized-line-box" id="tokenized-line-box"></div>
+        </div>
+
+        <div class="live-legend">
+            <span class="legend-item"><span class="legend-dot" style="background-color: #3182ce;"></span> 名詞 (青)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #38a169;"></span> 動詞 (緑)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #dd6b20;"></span> 形容詞 (橙)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #805ad5;"></span> 代名詞 (紫)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #d53f8c;"></span> 副詞 (桃)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #a0aec0;"></span> <span style="text-decoration: line-through;">対象外 (打ち消し線)</span></span>
+        </div>
+    </div>
+
+    <!-- 解析結果エリア（アニメーション中もリアルタイムに都度カウント更新） -->
+    <div class="result-section" id="result-section">
+        
+        <!-- 合計単語数（abcounterスタイル。※総文字数は非表示） -->
+        <div class="total-display">
+            <span class="total-label">抽出単語 合計</span>
+            <span class="total-number" id="total-count">0</span>
+            <div class="unique-display">語彙数: <strong id="unique-count">0</strong> 種類</div>
+        </div>
+
+        <!-- 横棒グラフセクション（abcounter仕様・四角いバー・先端に個数・上位n件指定） -->
+        <div class="chart-section" id="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">単語の出現頻度グラフ</div>
+                <div class="chart-limit-wrap">
+                    <label for="chart-n-input">表示件数: 上位</label>
+                    <input type="number" id="chart-n-input" min="1" max="1000" value="30">
+                    <span>単語</span>
+                </div>
+            </div>
+            
+            <div class="horizontal-chart-layout">
+                <!-- X軸の目盛り表示 -->
+                <div class="x-axis-ticks" id="x-axis-ticks">
+                    <!-- JSで 0%, 2%, 4%... などを生成 -->
+                </div>
+                
+                <div class="chart-main-area">
+                    <!-- グリッドライン（破線）は削除。左端の基準線のみ -->
+                    <div class="chart-base-line"></div>
+                    <div class="bars-container" id="bars-container">
+                        <!-- JSで横棒バー群を生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 単語頻度ランキング表 -->
+        <div class="table-section">
+            <div class="table-title">単語出現頻度ランキング</div>
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">順位</th>
+                        <th>単語</th>
+                        <th style="width: 90px;">品詞</th>
+                        <th style="width: 100px;">出現数</th>
+                        <th style="width: 90px;">割合</th>
+                    </tr>
+                </thead>
+                <tbody id="ranking-tbody">
+                    <!-- JSで生成 -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</body>
+</html>
