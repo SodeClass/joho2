@@ -12,8 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
 
-    <link rel="stylesheet" href="./style.css?v=3">
-    <script src="./app.js?v=3" defer></script>
+    <link rel="stylesheet" href="./style.css?v=6">
+    <script src="./app.js?v=6" defer></script>
 </head>
 <body>
 
@@ -147,10 +147,21 @@
             <div class="unique-display">語彙数: <strong id="unique-count">0</strong> 種類</div>
         </div>
 
+        <!-- 表示切替セグメントスイッチ（左右逆: 左=ランキング / 右=グラフ、初期状態: ランキング青地） -->
+        <div class="view-toggle-container">
+            <div class="view-toggle-box" role="tablist" aria-label="表示形式切り替え">
+                <button type="button" class="view-toggle-btn active" id="view-btn-ranking" role="tab" aria-selected="true">
+                    ランキング
+                </button>
+                <button type="button" class="view-toggle-btn" id="view-btn-graph" role="tab" aria-selected="false">
+                    グラフ
+                </button>
+            </div>
+        </div>
+
         <!-- 横棒グラフセクション（abcounter仕様・四角いバー・先端に個数・上位n件指定） -->
         <div class="chart-section" id="chart-section">
             <div class="chart-header">
-                <div class="chart-title">単語の出現頻度グラフ</div>
                 <div class="chart-limit-wrap">
                     <label for="chart-n-input">表示件数: 上位</label>
                     <input type="number" id="chart-n-input" min="1" max="1000" value="30">
@@ -175,8 +186,14 @@
         </div>
 
         <!-- 単語頻度ランキング表 -->
-        <div class="table-section">
-            <div class="table-title">単語出現頻度ランキング</div>
+        <div class="table-section" id="table-section">
+            <div class="table-header">
+                <div class="table-limit-wrap">
+                    <label for="table-n-input">表示件数: 上位</label>
+                    <input type="number" id="table-n-input" min="1" max="1000" value="30">
+                    <span>単語</span>
+                </div>
+            </div>
             <table class="ranking-table">
                 <thead>
                     <tr>

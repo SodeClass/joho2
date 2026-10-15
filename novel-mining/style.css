@@ -624,9 +624,69 @@ input:checked + .slider:before {
 }
 
 /* ==========================================
+   表示切替セグメントスイッチ（ランキング / グラフ）
+========================================== */
+.view-toggle-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 20px 0 10px 0;
+}
+
+.view-toggle-box {
+    display: inline-flex;
+    align-items: center;
+    background-color: #edf2f7;
+    border: 1px solid var(--border-color);
+    padding: 4px;
+    border-radius: 30px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    gap: 4px;
+    max-width: 100%;
+}
+
+.view-toggle-btn {
+    border: none;
+    outline: none;
+    background-color: #edf2f7; /* 非選択は灰色地 */
+    color: #4a5568;
+    font-size: 1.15rem;
+    font-weight: 500;
+    padding: 10px 22px;
+    border-radius: 26px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.view-toggle-btn:hover:not(.active) {
+    background-color: #e2e8f0;
+    color: #2d3748;
+}
+
+.view-toggle-btn.active {
+    background-color: #3182ce; /* 選択中は青地 */
+    color: #ffffff;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(49, 130, 206, 0.4);
+}
+
+.view-toggle-btn:focus-visible {
+    outline: 2px solid #2b6cb0;
+    outline-offset: 2px;
+}
+
+/* ==========================================
    横棒グラフ（角丸なし・先端個数・破線なし・品詞色分け）
 ========================================== */
 .chart-section {
+    display: none; /* 初期状態はランキング表示のため初期非表示 */
     margin-top: 25px;
     background-color: #fff;
     border: 1px solid var(--border-color);
@@ -634,21 +694,25 @@ input:checked + .slider:before {
     padding: 22px 20px;
 }
 
-.chart-header {
+.chart-header,
+.table-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 20px;
 }
 
-.chart-title {
+.chart-title,
+.table-title {
     font-size: 1.45rem;
     font-weight: bold;
+    margin: 0;
 }
 
-.chart-limit-wrap {
+.chart-limit-wrap,
+.table-limit-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -656,7 +720,9 @@ input:checked + .slider:before {
 }
 
 .chart-limit-wrap input[type="number"],
-.chart-limit-wrap select {
+.chart-limit-wrap select,
+.table-limit-wrap input[type="number"],
+.table-limit-wrap select {
     padding: 6px 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -665,7 +731,8 @@ input:checked + .slider:before {
     font-family: inherit;
 }
 
-.chart-limit-wrap input[type="number"] {
+.chart-limit-wrap input[type="number"],
+.table-limit-wrap input[type="number"] {
     width: 65px;
     text-align: right;
 }
@@ -825,14 +892,7 @@ input:checked + .slider:before {
     background-color: #fff;
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 20px;
-}
-
-.table-title {
-    font-size: 1.4rem;
-    font-weight: bold;
-    margin-bottom: 16px;
-    text-align: center;
+    padding: 22px 20px;
 }
 
 .ranking-table {
@@ -874,6 +934,23 @@ input:checked + .slider:before {
     .big-switch-label {
         width: 100%;
         justify-content: space-between;
+    }
+
+    .view-toggle-box {
+        width: 100%;
+        border-radius: 12px;
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .view-toggle-btn {
+        flex: 1;
+        font-size: 0.95rem;
+        padding: 9px 8px;
+        border-radius: 9px;
+        white-space: normal;
+        text-align: center;
+        line-height: 1.3;
     }
 
     .x-axis-ticks, .chart-main-area {

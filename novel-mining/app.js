@@ -211,9 +211,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Results (abcounter仕様)
     const resultSection = document.getElementById('result-section');
+    const chartSection = document.getElementById('chart-section');
+    const tableSection = document.getElementById('table-section');
+    const viewBtnRanking = document.getElementById('view-btn-ranking');
+    const viewBtnGraph = document.getElementById('view-btn-graph');
     const totalCountDisplay = document.getElementById('total-count');
     const uniqueCountDisplay = document.getElementById('unique-count');
     const chartNInput = document.getElementById('chart-n-input');
+    const tableNInput = document.getElementById('table-n-input');
     const xAxisTicks = document.getElementById('x-axis-ticks');
     const barsContainer = document.getElementById('bars-container');
     const rankingTbody = document.getElementById('ranking-tbody');
@@ -686,8 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
         totalCountDisplay.textContent = total.toLocaleString();
         uniqueCountDisplay.textContent = uniqueCount.toLocaleString();
 
-        // 上位 n 件の取得
-        const n = Math.max(1, parseInt(chartNInput.value, 10) || 30);
+        // 上位 n 件の取得（グラフ・ランキング共通仕様）
+        const n = Math.max(1, parseInt(chartNInput?.value, 10) || parseInt(tableNInput?.value, 10) || 30);
         const topWords = latestSortedList.slice(0, n);
 
         // 最長単語幅に応じたラベル幅・グラフ左余白の動的調整
@@ -762,8 +767,8 @@ document.addEventListener('DOMContentLoaded', () => {
             barsContainer.appendChild(row);
         });
 
-        // ランキング表の生成
-        const tableWords = latestSortedList.slice(0, 50);
+        // ランキング表の生成（上位n件）
+        const tableWords = latestSortedList.slice(0, n);
         let tableHTML = '';
         tableWords.forEach((item, index) => {
             const rank = index + 1;
@@ -787,8 +792,11 @@ document.addEventListener('DOMContentLoaded', () => {
         rankingTbody.innerHTML = tableHTML;
     }
 
-    // 上位n件切り替えイベント
-    const updateChartLimit = () => {
+    // 上位n件切り替えイベント（グラフ・ランキング連動）
+    const updateLimit = (val) => {
+        const num = Math.max(1, parseInt(val, 10) || 30);
+        if (chartNInput && parseInt(chartNInput.value, 10) !== num) chartNInput.value = num;
+        if (tableNInput && parseInt(tableNInput.value, 10) !== num) tableNInput.value = num;
         if (latestSortedList.length > 0) {
             const wordCounts = {};
             const wordPos = {};
@@ -799,13 +807,57 @@ document.addEventListener('DOMContentLoaded', () => {
             renderChartAndTable(wordCounts, wordPos, latestTotalCount);
         }
     };
-    chartNInput.addEventListener('input', updateChartLimit);
-    chartNInput.addEventListener('change', updateChartLimit);
+    if (chartNInput) {
+        chartNInput.addEventListener('input', () => updateLimit(chartNInput.value));
+        chartNInput.addEventListener('change', () => updateLimit(chartNInput.value));
+    }
+    if (tableNInput) {
+        tableNInput.addEventListener('input', () => updateLimit(tableNInput.value));
+        tableNInput.addEventListener('change', () => updateLimit(tableNInput.value));
+    }
 
     // 画面外クリックでフキダシを閉じる
     document.addEventListener('click', () => {
         document.querySelectorAll('.bar-row').forEach(r => r.classList.remove('show-tooltip'));
     });
+
+    // 表示形式の切り替え（左=ランキング / 右=グラフ、初期状態: ランキング青地）
+    let currentViewMode = 'ranking';
+
+    function setViewMode(mode) {
+        currentViewMode = mode;
+        if (mode === 'ranking') {
+            if (chartSection) chartSection.style.display = 'none';
+            if (tableSection) tableSection.style.display = 'block';
+            if (viewBtnRanking) {
+                viewBtnRanking.classList.add('active');
+                viewBtnRanking.setAttribute('aria-selected', 'true');
+            }
+            if (viewBtnGraph) {
+                viewBtnGraph.classList.remove('active');
+                viewBtnGraph.setAttribute('aria-selected', 'false');
+            }
+        } else {
+            if (chartSection) chartSection.style.display = 'block';
+            if (tableSection) tableSection.style.display = 'none';
+            if (viewBtnGraph) {
+                viewBtnGraph.classList.add('active');
+                viewBtnGraph.setAttribute('aria-selected', 'true');
+            }
+            if (viewBtnRanking) {
+                viewBtnRanking.classList.remove('active');
+                viewBtnRanking.setAttribute('aria-selected', 'false');
+            }
+        }
+    }
+
+    if (viewBtnRanking) {
+        viewBtnRanking.addEventListener('click', () => setViewMode('ranking'));
+    }
+    if (viewBtnGraph) {
+        viewBtnGraph.addEventListener('click', () => setViewMode('graph'));
+    }
+    setViewMode('ranking');
 
     function escapeHtml(str) {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
