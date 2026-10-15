@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>歌詞テキストマイニング</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+
+    <link rel="stylesheet" href="./style.css?v=1">
+    <script src="./app.js?v=1" defer></script>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>歌詞テキストマイニング</h1>
+        <div id="dic-badge" class="dic-badge">
+            <span id="dic-badge-dot" class="badge-dot"></span>
+            <span id="dic-badge-text">辞書ロード中...</span>
+        </div>
+    </div>
+    <p>楽曲の歌詞テキスト（.txt）や、歌詞ファイルをまとめたフォルダをアップロードして形態素解析を行い、頻出単語ランキングと横棒グラフで可視化します。</p>
+
+    <div class="input-card">
+        <div class="drop-zone" id="drop-zone">
+            <span class="drop-zone-icon">📁</span>
+            <div class="drop-zone-text" id="drop-zone-text">歌詞の <strong>txtファイル</strong>、<strong>複数ファイル</strong>、または <strong>フォルダ</strong> をドロップ</div>
+            <div class="drop-zone-hint">（フォルダ一括解析 / Shift_JIS・UTF-8 自動判別 / zip対応）</div>
+            
+            <div class="upload-buttons">
+                <button type="button" class="btn-upload-choice" id="btn-select-folder">
+                    <span class="btn-icon">📁</span> フォルダを選択
+                </button>
+                <button type="button" class="btn-upload-choice" id="btn-select-file">
+                    <span class="btn-icon">📄</span> ファイルを選択
+                </button>
+            </div>
+
+            <input type="file" id="file-input" accept=".txt,.zip" multiple>
+            <input type="file" id="folder-input" webkitdirectory directory multiple>
+        </div>
+
+        <div id="file-info" class="file-info" style="display: none;">
+            <div class="file-info-header">
+                <span>読み込み完了: <strong id="file-summary-count">0</strong> 曲（計 <span id="file-summary-chars">0</span> 文字）</span>
+                <button type="button" id="btn-toggle-file-list" class="file-list-toggle">ファイル一覧を表示</button>
+            </div>
+            <div id="file-list-content" class="file-list-content" style="display: none;">
+                <ul id="file-list-ul"></ul>
+            </div>
+        </div>
+
+        <div class="clean-options">
+            <span class="option-title">クレンジング設定：</span>
+            <label class="checkbox-label" title="「歌手　〇〇」「作詞　〇〇」「作曲　〇〇」などのクレジット行を除外します">
+                <input type="checkbox" id="opt-clean-credits" checked>
+                <span>クレジット情報（歌手・作詞・作曲等）を除外</span>
+            </label>
+            <label class="checkbox-label" title="[Verse 1], [Chorus], 【サビ】, [00:12.34] などの記号・タイムタグを除外します">
+                <input type="checkbox" id="opt-clean-tags" checked>
+                <span>構成タグ・タイムタグ（[Chorus], 【サビ】等）を除外</span>
+            </label>
+        </div>
+
+        <div class="pos-options">
+            <span class="pos-title">集計対象の品詞：</span>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-noun" checked>
+                <span class="tag-label noun-label">名詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-verb" checked>
+                <span class="tag-label verb-label">動詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-adj" checked>
+                <span class="tag-label adj-label">形容詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-pronoun" checked>
+                <span class="tag-label pronoun-label">代名詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-adverb" checked>
+                <span class="tag-label adverb-label">副詞</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="opt-pos-interj" checked>
+                <span class="tag-label interj-label">感動詞</span>
+            </label>
+        </div>
+
+        <div class="control-panel">
+            <div class="action-left">
+                <button type="button" id="analyze-btn" class="analyze-btn">解析する</button>
+            </div>
+
+            <div class="switch-right">
+                <label class="big-switch-label" for="live-mode-toggle">
+                    <span class="switch-title">解析の様子を見る</span>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="live-mode-toggle">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-box" id="status-box" style="display: none;">
+        <span class="spinner" id="status-spinner"></span>
+        <div class="status-text-wrap">
+            <div id="status-text">準備中...</div>
+            <div class="status-progress-wrap" id="status-progress-wrap" style="display: none;">
+                <div class="status-progress-bar" id="status-progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="live-panel" id="live-panel" style="display: none;">
+        <div class="live-header">
+            <div class="live-badge">
+                <span class="pulse-dot"></span>
+                <span id="live-song-title">歌詞解析中</span>
+            </div>
+            <div class="live-controls">
+                <div class="speed-control">
+                    <label for="speed-slider">速度:</label>
+                    <input type="range" id="speed-slider" min="1" max="5" value="3" step="1">
+                    <span id="speed-display">標準</span>
+                </div>
+                <button type="button" id="skip-btn" class="skip-btn">スキップ（即時表示）</button>
+            </div>
+        </div>
+
+        <div class="live-progress-container">
+            <div class="live-progress-bar">
+                <div class="live-progress-fill" id="live-progress-fill" style="width: 0%;"></div>
+            </div>
+            <span class="live-progress-text" id="live-progress-text">0%</span>
+        </div>
+
+        <div class="live-display-area">
+            <div class="line-label">解析中の歌詞行：</div>
+            <div class="current-line-box" id="current-line-box">（待機中）</div>
+
+            <div class="line-label" style="margin-top: 10px;">形態素分割・品詞判定：</div>
+            <div class="tokenized-line-box" id="tokenized-line-box">
+            </div>
+        </div>
+
+        <div class="live-legend">
+            <span class="legend-item"><span class="legend-dot" style="background-color: #3182ce;"></span> 名詞 (青)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #38a169;"></span> 動詞 (緑)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #dd6b20;"></span> 形容詞 (橙)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #805ad5;"></span> 代名詞 (紫)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #d53f8c;"></span> 副詞 (桃)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #00a3c4;"></span> 感動詞 (水)</span>
+            <span class="legend-item"><span class="legend-dot" style="background-color: #a0aec0;"></span> <span style="text-decoration: line-through;">対象外 (打消線)</span></span>
+        </div>
+    </div>
+
+    <div class="result-section" id="result-section" style="display: none;">
+        
+        <div class="total-display">
+            <span class="total-label">抽出単語 合計</span>
+            <span class="total-number" id="total-count">0</span>
+            <div class="unique-display">
+                語彙数: <strong id="unique-count">0</strong> 種類
+                <span id="total-songs-display" style="margin-left: 14px;">（対象: <strong id="total-songs-count">0</strong> 曲）</span>
+            </div>
+        </div>
+
+        <div class="view-toggle-container">
+            <div class="view-toggle-box" role="tablist" aria-label="表示形式切り替え">
+                <button type="button" class="view-toggle-btn active" id="view-btn-ranking" role="tab" aria-selected="true">
+                    ランキング
+                </button>
+                <button type="button" class="view-toggle-btn" id="view-btn-graph" role="tab" aria-selected="false">
+                    グラフ
+                </button>
+            </div>
+        </div>
+
+        <div class="chart-section" id="chart-section" style="display: none;">
+            <div class="chart-header">
+                <div class="chart-limit-wrap">
+                    <label for="chart-n-input">表示件数: 上位</label>
+                    <input type="number" id="chart-n-input" min="1" max="1000" value="30">
+                    <span>単語</span>
+                </div>
+            </div>
+            
+            <div class="horizontal-chart-layout">
+                <div class="x-axis-ticks" id="x-axis-ticks">
+                </div>
+                
+                <div class="chart-main-area">
+                    <div class="chart-base-line"></div>
+                    <div class="bars-container" id="bars-container">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-section" id="table-section">
+            <div class="table-header">
+                <div class="table-limit-wrap">
+                    <label for="table-n-input">表示件数: 上位</label>
+                    <input type="number" id="table-n-input" min="1" max="1000" value="30">
+                    <span>単語</span>
+                </div>
+            </div>
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">順位</th>
+                        <th>単語</th>
+                        <th style="width: 90px;">品詞</th>
+                        <th style="width: 100px;">出現数</th>
+                        <th style="width: 90px;">割合</th>
+                    </tr>
+                </thead>
+                <tbody id="ranking-tbody">
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</body>
+</html>
