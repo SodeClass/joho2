@@ -187,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const optPosAdj = document.getElementById('opt-pos-adj');
     const optPosPronoun = document.getElementById('opt-pos-pronoun');
     const optPosAdverb = document.getElementById('opt-pos-adverb');
+    const optStopwords = document.getElementById('opt-stopwords');
 
     // Status & Badges
     const dicBadge = document.getElementById('dic-badge');
@@ -244,14 +245,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 辞書ロード進捗コールバック
-    onDicProgressCallback = (percent, loadedBytes, totalBytes, isCached) => {
+    onDicProgressCallback = (percent, loadedBytes, totalBytes, isCached, customMsg) => {
         if (isDictionaryReady) return;
 
         if (isCached) {
-            // キャッシュ復元中の画面表示は消す
             hideStatus();
-            // 右上の表示は「辞書ロード中...」のまま進める
-            dicBadgeText.textContent = '辞書ロード中...';
+            dicBadgeText.textContent = 'Sudachi 辞書ロード中...';
+            return;
+        }
+
+        if (customMsg) {
+            showStatus(customMsg, true);
+            statusProgressBar.style.width = '100%';
             return;
         }
 
@@ -261,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusBox.style.display = 'flex';
         statusProgressWrap.style.display = 'block';
         statusProgressBar.style.width = percent + '%';
-        statusText.textContent = `形態素解析辞書をロード中... ${mbLoaded}MB / ${mbTotal}MB (${percent}%)`;
+        statusText.textContent = `Sudachi 辞書をダウンロード中... ${mbLoaded}MB / ${mbTotal}MB (${percent}%)`;
         dicBadgeText.textContent = '辞書ロード中...';
     };
 
@@ -279,40 +284,35 @@ document.addEventListener('DOMContentLoaded', () => {
         dicBadge.style.backgroundColor = '#c6f6d5';
         dicBadge.style.color = '#22543d';
         dicBadgeDot.style.backgroundColor = '#38a169';
-        dicBadgeText.textContent = '辞書準備完了 (利用可能)';
+        dicBadgeText.textContent = 'Sudachi 準備完了 (利用可能)';
     }
 
-    function initKuromoji() {
-        if (tokenizer) return Promise.resolve(tokenizer);
+    function initSudachi() {
+        if (tokenizer && tokenizer.isReady()) return Promise.resolve(tokenizer);
         if (initPromise) return initPromise;
 
-        // キャッシュチェック前の初期状態は右上バッジのみ「辞書ロード中...」
         dicBadgeText.textContent = '辞書ロード中...';
-        initPromise = new Promise((resolve, reject) => {
-            kuromoji.builder({
-                dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/'
-            }).build((err, _tokenizer) => {
-                if (err) {
-                    hideStatus();
-                    initPromise = null;
-                    dicBadge.style.backgroundColor = '#fed7d7';
-                    dicBadge.style.color = '#742a2a';
-                    dicBadgeDot.style.backgroundColor = '#e53e3e';
-                    dicBadgeText.textContent = '辞書ロード失敗';
-                    alert('形態素解析エンジンの読み込みに失敗しました: ' + (err.message || err));
-                    reject(err);
-                } else {
-                    tokenizer = _tokenizer;
-                    setDicReady();
-                    hideStatus();
-                    resolve(tokenizer);
-                }
+        initPromise = SudachiTokenizer.init(onDicProgressCallback)
+            .then((tok) => {
+                tokenizer = tok;
+                setDicReady();
+                hideStatus();
+                return tokenizer;
+            })
+            .catch((err) => {
+                hideStatus();
+                initPromise = null;
+                dicBadge.style.backgroundColor = '#fed7d7';
+                dicBadge.style.color = '#742a2a';
+                dicBadgeDot.style.backgroundColor = '#e53e3e';
+                dicBadgeText.textContent = '辞書ロード失敗';
+                alert('Sudachi 形態素解析エンジンの読み込みに失敗しました: ' + (err.message || err));
+                throw err;
             });
-        });
         return initPromise;
     }
 
-    initKuromoji().catch(console.error);
+    initSudachi().catch(console.error);
 
     // ドラッグ＆ドロップ & ファイル選択
     dropZone.addEventListener('click', () => fileInput.click());
@@ -448,6 +448,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!allowed) return { isTarget: false, word: basic, pos: assignedPos };
 
+        // Sudachi仕様ストップワード判定（ONの場合）
+        if (optStopwords && optStopwords.checked && window.STOP_WORDS) {
+            const lowerBasic = basic.toLowerCase();
+            const lowerSurface = (token.surface_form || '').toLowerCase();
+            if (window.STOP_WORDS.has(lowerBasic) || window.STOP_WORDS.has(lowerSurface)) {
+                return { isTarget: false, word: basic, pos: assignedPos };
+            }
+        }
+
         if (basic.length <= 1 && /^[\u3040-\u309F\u30A0-\u30FF\w\s]$/.test(basic)) {
             return { isTarget: false, word: basic, pos: assignedPos };
         }
@@ -477,10 +486,15 @@ document.addEventListener('DOMContentLoaded', () => {
         skipAnimationRequested = false;
 
         try {
-            if (!isDictionaryReady) {
-                showStatus('形態素解析辞書の準備を待っています...（完了次第自動で開始）', true);
+            const modeSelect = document.getElementById('sudachi-mode-select');
+            if (modeSelect && window.SudachiTokenizer) {
+                window.SudachiTokenizer.setMode(modeSelect.value);
             }
-            const t = await initKuromoji();
+
+            if (!isDictionaryReady) {
+                showStatus('Sudachi 辞書の準備を待っています...（完了次第自動で開始）', true);
+            }
+            const t = await initSudachi();
             showStatus('青空文庫テキストをクレンジング中...', false);
             const cleanedText = cleanAozoraText(currentLoadedText);
 
@@ -490,7 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            showStatus('形態素解析を実行中...', false);
+            showStatus('Sudachi で形態素解析を実行中...', false);
             const tokens = t.tokenize(cleanedText);
             hideStatus();
 

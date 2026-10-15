@@ -10,7 +10,8 @@
 
     <!-- CDN Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+    <script src="./stopwords.js?v=1"></script>
+    <script src="./sudachi-tokenizer.js?v=1"></script>
 
     <link rel="stylesheet" href="./style.css?v=6">
     <script src="./app.js?v=6" defer></script>
@@ -24,7 +25,7 @@
             <span id="dic-badge-text">辞書ロード中...</span>
         </div>
     </div>
-    <p>青空文庫の作品zipやtxtファイルから単語出現頻度を形態素解析でカウントし、ランキング表と横棒グラフで可視化します。</p>
+    <p>青空文庫の作品zipやtxtファイルから単語出現頻度を形態素解析（Sudachi）でカウントし、ランキング表と横棒グラフで可視化します。</p>
 
     <!-- 入力カード（テキスト入力欄なし・ファイルアップロード専用） -->
     <div class="input-card">
@@ -62,6 +63,21 @@
                 <input type="checkbox" id="opt-pos-adverb" checked>
                 <span class="tag-label adverb-label">副詞</span>
             </label>
+            <span style="color: #cbd5e0; margin: 0 4px;">|</span>
+            <label class="checkbox-label" title="Sudachi仕様の頻出語（形式名詞・補助動詞等）を除外します">
+                <input type="checkbox" id="opt-stopwords" checked>
+                <span class="tag-label stopword-label">ストップワード除外</span>
+            </label>
+        </div>
+
+        <!-- Sudachi 分割単位（モード切替） -->
+        <div class="pos-options" style="margin-top: 10px; align-items: center;">
+            <span class="pos-title">Sudachi 分割単位：</span>
+            <select id="sudachi-mode-select" style="padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e0; font-size: 0.9rem; background-color: #ffffff; color: #2d3748; cursor: pointer;">
+                <option value="2" selected>Mode C（長単位・固有名詞/複合語をまとめる - 推奨）</option>
+                <option value="1">Mode B（中単位・標準的な分割）</option>
+                <option value="0">Mode A（短単位・最も細かく分割）</option>
+            </select>
         </div>
 
         <!-- コントロールエリア（左: 解析するボタン / 右: 解析の様子を見るスイッチ） -->

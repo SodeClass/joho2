@@ -188,15 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileListContent = document.getElementById('file-list-content');
     const fileListUl = document.getElementById('file-list-ul');
 
-    // Cleansing & POS Checkboxes
-    const optCleanCredits = document.getElementById('opt-clean-credits');
-    const optCleanTags = document.getElementById('opt-clean-tags');
+    // POS Checkboxes
     const optPosNoun = document.getElementById('opt-pos-noun');
     const optPosVerb = document.getElementById('opt-pos-verb');
     const optPosAdj = document.getElementById('opt-pos-adj');
     const optPosPronoun = document.getElementById('opt-pos-pronoun');
     const optPosAdverb = document.getElementById('opt-pos-adverb');
-    const optPosInterj = document.getElementById('opt-pos-interj');
+    const optStopwords = document.getElementById('opt-stopwords');
 
     // Controls
     const analyzeBtn = document.getElementById('analyze-btn');
@@ -204,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Live Panel
     const livePanel = document.getElementById('live-panel');
-    const liveSongTitle = document.getElementById('live-song-title');
+    const liveBadge = document.getElementById('live-badge');
     const liveProgressFill = document.getElementById('live-progress-fill');
     const liveProgressText = document.getElementById('live-progress-text');
     const currentLineBox = document.getElementById('current-line-box');
@@ -249,20 +247,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 辞書ロード進捗コールバック
-    onDicProgressCallback = (percent, loadedBytes, totalBytes, isCached) => {
+    onDicProgressCallback = (percent, loadedBytes, totalBytes, isCached, customMsg) => {
         if (isDictionaryReady) return;
+
         if (isCached) {
             hideStatus();
-            dicBadgeText.textContent = '辞書ロード中...';
+            dicBadgeText.textContent = 'Sudachi 辞書ロード中...';
             return;
         }
+
+        if (customMsg) {
+            showStatus(customMsg, true);
+            statusProgressBar.style.width = '100%';
+            return;
+        }
+
         const mbLoaded = (loadedBytes / (1024 * 1024)).toFixed(1);
         const mbTotal = (totalBytes / (1024 * 1024)).toFixed(1);
 
         statusBox.style.display = 'flex';
         statusProgressWrap.style.display = 'block';
         statusProgressBar.style.width = percent + '%';
-        statusText.textContent = `形態素解析辞書をロード中... ${mbLoaded}MB / ${mbTotal}MB (${percent}%)`;
+        statusText.textContent = `Sudachi 辞書をダウンロード中... ${mbLoaded}MB / ${mbTotal}MB (${percent}%)`;
         dicBadgeText.textContent = '辞書ロード中...';
     };
 
@@ -280,39 +286,35 @@ document.addEventListener('DOMContentLoaded', () => {
         dicBadge.style.backgroundColor = '#c6f6d5';
         dicBadge.style.color = '#22543d';
         dicBadgeDot.style.backgroundColor = '#38a169';
-        dicBadgeText.textContent = '辞書準備完了 (利用可能)';
+        dicBadgeText.textContent = 'Sudachi 準備完了 (利用可能)';
     }
 
-    function initKuromoji() {
-        if (tokenizer) return Promise.resolve(tokenizer);
+    function initSudachi() {
+        if (tokenizer && tokenizer.isReady()) return Promise.resolve(tokenizer);
         if (initPromise) return initPromise;
 
         dicBadgeText.textContent = '辞書ロード中...';
-        initPromise = new Promise((resolve, reject) => {
-            kuromoji.builder({
-                dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/'
-            }).build((err, _tokenizer) => {
-                if (err) {
-                    hideStatus();
-                    initPromise = null;
-                    dicBadge.style.backgroundColor = '#fed7d7';
-                    dicBadge.style.color = '#742a2a';
-                    dicBadgeDot.style.backgroundColor = '#e53e3e';
-                    dicBadgeText.textContent = '辞書ロード失敗';
-                    alert('形態素解析エンジンの読み込みに失敗しました: ' + (err.message || err));
-                    reject(err);
-                } else {
-                    tokenizer = _tokenizer;
-                    setDicReady();
-                    hideStatus();
-                    resolve(tokenizer);
-                }
+        initPromise = SudachiTokenizer.init(onDicProgressCallback)
+            .then((tok) => {
+                tokenizer = tok;
+                setDicReady();
+                hideStatus();
+                return tokenizer;
+            })
+            .catch((err) => {
+                hideStatus();
+                initPromise = null;
+                dicBadge.style.backgroundColor = '#fed7d7';
+                dicBadge.style.color = '#742a2a';
+                dicBadgeDot.style.backgroundColor = '#e53e3e';
+                dicBadgeText.textContent = '辞書ロード失敗';
+                alert('Sudachi 形態素解析エンジンの読み込みに失敗しました: ' + (err.message || err));
+                throw err;
             });
-        });
         return initPromise;
     }
 
-    initKuromoji().catch(console.error);
+    initSudachi().catch(console.error);
 
     // ==========================================
     // ファイル & フォルダ選択・ドラッグ＆ドロップ
@@ -530,18 +532,19 @@ document.addEventListener('DOMContentLoaded', () => {
             let l = line.trim();
             if (!l) continue;
 
-            if (optCleanCredits.checked && CREDIT_LINE_REGEX.test(l)) {
+            // クレジット行の自動除外（歌手・作詞・作曲等）
+            if (CREDIT_LINE_REGEX.test(l)) {
                 continue;
             }
-            if (optCleanTags.checked && LRC_TAG_REGEX.test(l)) {
+
+            // LRCメタタグ・構成タグ（【サビ】等）の除外
+            if (LRC_TAG_REGEX.test(l) || STRUCT_TAG_REGEX.test(l)) {
                 continue;
             }
-            if (optCleanTags.checked && STRUCT_TAG_REGEX.test(l)) {
-                continue;
-            }
-            if (optCleanTags.checked) {
-                l = l.replace(TIMESTAMP_REGEX, '').trim();
-            }
+
+            // タイムタグの除去
+            l = l.replace(TIMESTAMP_REGEX, '').trim();
+
             l = l.replace(/《.*?》/g, '').replace(/｜/g, '');
             l = l.replace(/［＃.*?］/g, '');
 
@@ -588,14 +591,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 allowed = true;
                 assignedPos = '副詞';
             }
-        } else if (pos === '感動詞') {
-            if (optPosInterj.checked) {
-                allowed = true;
-                assignedPos = '感動詞';
-            }
         }
 
         if (!allowed) return { isTarget: false, word: basic, pos: assignedPos };
+
+        // Sudachi仕様ストップワード判定（ONの場合）
+        if (optStopwords && optStopwords.checked && window.STOP_WORDS) {
+            const lowerBasic = basic.toLowerCase();
+            const lowerSurface = (token.surface_form || '').toLowerCase();
+            if (window.STOP_WORDS.has(lowerBasic) || window.STOP_WORDS.has(lowerSurface)) {
+                return { isTarget: false, word: basic, pos: assignedPos };
+            }
+        }
 
         if (basic.length <= 1 && /^[\u3040-\u309F\u30A0-\u30FF\w\s]$/.test(basic)) {
             return { isTarget: false, word: basic, pos: assignedPos };
@@ -621,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!optPosNoun.checked && !optPosVerb.checked && !optPosAdj.checked && 
-            !optPosPronoun.checked && !optPosAdverb.checked && !optPosInterj.checked) {
+            !optPosPronoun.checked && !optPosAdverb.checked) {
             alert('少なくとも1つの品詞をチェックしてください。');
             return;
         }
@@ -630,10 +637,15 @@ document.addEventListener('DOMContentLoaded', () => {
         skipAnimationRequested = false;
 
         try {
-            if (!isDictionaryReady) {
-                showStatus('形態素解析辞書の準備を待っています...（完了次第自動で開始）', true);
+            const modeSelect = document.getElementById('sudachi-mode-select');
+            if (modeSelect && window.SudachiTokenizer) {
+                window.SudachiTokenizer.setMode(modeSelect.value);
             }
-            const t = await initKuromoji();
+
+            if (!isDictionaryReady) {
+                showStatus('Sudachi 辞書の準備を待っています...（完了次第自動で開始）', true);
+            }
+            const t = await initSudachi();
             showStatus('歌詞データをクレンジング中...', false);
 
             const processedSongs = [];
@@ -697,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // アニメーション解析（アニメーションON時）
+    // アニメーション解析（アニメーションON時・novel-mining仕様完全準拠）
     // ==========================================
     async function runLiveStepAnimation(processedSongs, t) {
         livePanel.style.display = 'block';
@@ -706,105 +718,143 @@ document.addEventListener('DOMContentLoaded', () => {
         currentLineBox.textContent = '（解析開始）';
         liveProgressFill.style.width = '0%';
         liveProgressText.textContent = '0%';
+        liveBadge.textContent = '解析中...';
+        livePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         totalSongsCount.textContent = processedSongs.length.toLocaleString();
 
-        const wordCounts = {};
-        const wordPos = {};
-        let totalCount = 0;
+        const runningWordCounts = {};
+        const runningWordPos = {};
+        let runningTotal = 0;
 
-        let totalLines = 0;
-        processedSongs.forEach(s => totalLines += s.lines.length);
-        let processedLinesCount = 0;
-
-        const POS_CLASS_MAP = {
-            '名詞': 'noun',
-            '動詞': 'verb',
-            '形容詞': 'adj',
-            '代名詞': 'pronoun',
-            '副詞': 'adverb',
-            '感動詞': 'interj'
-        };
-
-        for (let sIdx = 0; sIdx < processedSongs.length; sIdx++) {
-            const song = processedSongs[sIdx];
-            liveSongTitle.textContent = `曲 ${sIdx + 1} / ${processedSongs.length}: ${song.name}`;
-
-            for (let lIdx = 0; lIdx < song.lines.length; lIdx++) {
-                if (skipAnimationRequested) break;
-
-                const line = song.lines[lIdx];
-                processedLinesCount++;
-                const pct = Math.min(100, Math.round((processedLinesCount / totalLines) * 100));
-                liveProgressFill.style.width = pct + '%';
-                liveProgressText.textContent = pct + '%';
-
-                currentLineBox.textContent = line;
-                const tokens = t.tokenize(line);
-
-                tokenizedLineBox.innerHTML = '';
-                const lineTargets = [];
-
-                tokens.forEach((token, tIdx) => {
-                    const check = checkWordTarget(token);
-                    const chip = document.createElement('span');
-                    chip.className = 'token-chip';
-
-                    if (check.isTarget) {
-                        const cName = POS_CLASS_MAP[check.pos] || 'noun';
-                        chip.classList.add(cName);
-                        lineTargets.push(check);
-                    } else {
-                        chip.classList.add('excluded');
-                    }
-                    chip.textContent = token.surface_form;
-                    tokenizedLineBox.appendChild(chip);
-
-                    if (tIdx < tokens.length - 1) {
-                        const slash = document.createElement('span');
-                        slash.className = 'slash-sep';
-                        slash.textContent = ' / ';
-                        tokenizedLineBox.appendChild(slash);
-                    }
-                });
-
-                for (const item of lineTargets) {
-                    wordCounts[item.word] = (wordCounts[item.word] || 0) + 1;
-                    wordPos[item.word] = item.pos;
-                    totalCount++;
-                }
-
-                renderChartAndTable(wordCounts, wordPos, totalCount);
-
-                if (currentDelay > 0) {
-                    await new Promise(r => setTimeout(r, currentDelay));
+        let totalTokens = 0;
+        const allSongTokenLines = [];
+        for (const song of processedSongs) {
+            const tokenLines = [];
+            for (const line of song.lines) {
+                const toks = t.tokenize(line);
+                if (toks.length > 0) {
+                    tokenLines.push({ text: line, tokens: toks });
+                    totalTokens += toks.length;
                 }
             }
-            if (skipAnimationRequested) break;
+            allSongTokenLines.push({ songName: song.name, lines: tokenLines });
         }
 
-        // スキップされた場合の残り一括処理
-        if (skipAnimationRequested) {
-            for (const song of processedSongs) {
-                for (const line of song.lines) {
-                    const tokens = t.tokenize(line);
-                    for (const token of tokens) {
-                        const check = checkWordTarget(token);
-                        if (check.isTarget) {
-                            wordCounts[check.word] = (wordCounts[check.word] || 0) + 1;
-                            wordPos[check.word] = check.pos;
-                            totalCount++;
-                        }
+        let processedTokensCount = 0;
+
+        for (let sIdx = 0; sIdx < allSongTokenLines.length; sIdx++) {
+            if (skipAnimationRequested) break;
+            const songData = allSongTokenLines[sIdx];
+            if (allSongTokenLines.length > 1) {
+                liveBadge.textContent = `曲 ${sIdx + 1}/${allSongTokenLines.length}: ${songData.songName}`;
+            } else {
+                liveBadge.textContent = '歌詞解析中...';
+            }
+
+            for (let lIdx = 0; lIdx < songData.lines.length; lIdx++) {
+                if (skipAnimationRequested) break;
+                const lineItem = songData.lines[lIdx];
+                const currentTokens = lineItem.tokens;
+
+                // ① 元の歌詞（1行表示）
+                currentLineBox.textContent = lineItem.text;
+
+                // Step A: まず素の文章をそのまま出す（隙間ゼロ・スペースなしの地の文）
+                tokenizedLineBox.innerHTML = '';
+                const tokenSpans = [];
+                currentTokens.forEach((tok) => {
+                    const span = document.createElement('span');
+                    span.className = 'token-raw';
+                    span.textContent = tok.surface_form;
+                    tokenSpans.push(span);
+                    tokenizedLineBox.appendChild(span);
+                });
+                tokenizedLineBox.scrollTop = tokenizedLineBox.scrollHeight;
+
+                // 素の文章を見せるウェイト
+                if (currentDelay > 0) {
+                    await new Promise(r => setTimeout(r, Math.max(currentDelay * 1.5, 80)));
+                }
+                if (skipAnimationRequested) break;
+
+                // Step B: 形態素に分ける（スラッシュを間に挿入していく）
+                for (let i = 0; i < tokenSpans.length - 1; i++) {
+                    if (skipAnimationRequested) break;
+                    const slash = document.createElement('span');
+                    slash.className = 'token-slash';
+                    slash.textContent = ' / ';
+                    tokenSpans[i].after(slash);
+                    tokenizedLineBox.scrollTop = tokenizedLineBox.scrollHeight;
+                    if (currentDelay > 0) {
+                        await new Promise(r => setTimeout(r, Math.max(currentDelay * 0.5, 10)));
                     }
                 }
+
+                // 分かち書き完了の短いウェイト
+                if (currentDelay > 0) {
+                    await new Promise(r => setTimeout(r, Math.max(currentDelay * 0.8, 30)));
+                }
+                if (skipAnimationRequested) break;
+
+                // Step C: 1つ1つ品詞判定し、対象外に打ち消し線、対象品詞をハイライト ＆ 初出ゴールド光彩 ＆ 都度グラフカウント
+                for (let i = 0; i < currentTokens.length; i++) {
+                    if (skipAnimationRequested) break;
+                    const token = currentTokens[i];
+                    const check = checkWordTarget(token);
+                    const span = tokenSpans[i];
+
+                    span.className = 'token-item';
+
+                    if (check.isTarget) {
+                        if (check.pos === '名詞') span.classList.add('token-noun');
+                        else if (check.pos === '動詞') span.classList.add('token-verb');
+                        else if (check.pos === '形容詞') span.classList.add('token-adj');
+                        else if (check.pos === '代名詞') span.classList.add('token-pronoun');
+                        else if (check.pos === '副詞') span.classList.add('token-adverb');
+
+                        const isFirstAppearance = !runningWordCounts[check.word];
+                        if (isFirstAppearance) {
+                            span.classList.add('token-first-appearance');
+                        }
+
+                        runningTotal++;
+                        runningWordCounts[check.word] = (runningWordCounts[check.word] || 0) + 1;
+                        runningWordPos[check.word] = check.pos;
+                        renderChartAndTable(runningWordCounts, runningWordPos, runningTotal);
+                    } else {
+                        span.classList.add('token-excluded');
+                    }
+
+                    processedTokensCount++;
+
+                    const progress = totalTokens > 0 ? Math.min(100, Math.round((processedTokensCount / totalTokens) * 100)) : 100;
+                    liveProgressFill.style.width = progress + '%';
+                    liveProgressText.textContent = `${progress}% (抽出: ${runningTotal}語)`;
+
+                    if (currentDelay > 0) {
+                        await new Promise(r => setTimeout(r, currentDelay));
+                    }
+                }
+
+                if (currentDelay > 0) {
+                    await new Promise(r => setTimeout(r, Math.max(currentDelay * 1.2, 50)));
+                }
             }
+        }
+
+        if (skipAnimationRequested) {
+            runFastAnalysis(processedSongs, t);
             liveProgressFill.style.width = '100%';
-            liveProgressText.textContent = '100%';
+            liveProgressText.textContent = '100% 完了';
             currentLineBox.textContent = '（全曲の解析完了）';
             tokenizedLineBox.innerHTML = '<em>スキップされ、集計が完了しました。</em>';
-            renderChartAndTable(wordCounts, wordPos, totalCount);
+            liveBadge.textContent = '解析完了！';
         } else {
+            liveProgressFill.style.width = '100%';
+            liveProgressText.textContent = '100% 完了';
             currentLineBox.textContent = '（全曲の解析完了）';
-            liveSongTitle.textContent = `全 ${processedSongs.length} 曲の解析完了`;
+            liveBadge.textContent = '解析完了！';
+            runFastAnalysis(processedSongs, t);
         }
     }
 
@@ -868,8 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '動詞': 'verb',
             '形容詞': 'adj',
             '代名詞': 'pronoun',
-            '副詞': 'adverb',
-            '感動詞': 'interj'
+            '副詞': 'adverb'
         };
 
         barsContainer.innerHTML = '';

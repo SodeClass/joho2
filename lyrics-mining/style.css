@@ -13,7 +13,6 @@
     --color-adj: #dd6b20;
     --color-pronoun: #805ad5;
     --color-adverb: #d53f8c;
-    --color-interj: #00a3c4;
     --color-stop: #a0aec0;
 }
 
@@ -204,8 +203,8 @@ input[type="file"] {
     margin-bottom: 4px;
 }
 
-/* クレンジングオプション & 品詞オプション */
-.clean-options, .pos-options {
+/* 品詞オプション */
+.pos-options {
     display: flex;
     align-items: center;
     gap: 16px;
@@ -217,7 +216,7 @@ input[type="file"] {
     margin-bottom: 16px;
 }
 
-.option-title, .pos-title {
+.pos-title {
     font-weight: bold;
     font-size: 1.15rem;
 }
@@ -240,16 +239,16 @@ input[type="file"] {
 .tag-label {
     padding: 2px 8px;
     border-radius: 4px;
-    color: #fff;
-    font-size: 1.05rem;
     font-weight: bold;
+    font-size: 1rem;
 }
-.noun-label    { background-color: var(--color-noun); }
-.verb-label    { background-color: var(--color-verb); }
-.adj-label     { background-color: var(--color-adj); }
-.pronoun-label { background-color: var(--color-pronoun); }
-.adverb-label  { background-color: var(--color-adverb); }
-.interj-label  { background-color: var(--color-interj); }
+
+.noun-label { background-color: #ebf8ff; color: var(--color-noun); border: 1px solid #bee3f8; }
+.verb-label { background-color: #f0fff4; color: var(--color-verb); border: 1px solid #c6f6d5; }
+.adj-label  { background-color: #fffaf0; color: var(--color-adj);  border: 1px solid #feebc8; }
+.pronoun-label { background-color: #faf5ff; color: var(--color-pronoun); border: 1px solid #e9d8fd; }
+.adverb-label  { background-color: #fff5f7; color: var(--color-adverb);  border: 1px solid #fed7e2; }
+.stopword-label { background-color: #f7fafc; color: #4a5568; border: 1px solid #cbd5e0; }
 
 /* コントロールパネル */
 .control-panel {
@@ -417,14 +416,16 @@ input:checked + .slider:before {
 }
 
 /* ==========================================
-   解析アニメーション パネル
+   アニメーション可視化パネル
 ========================================== */
 .live-panel {
-    background-color: #f7fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    display: none;
+    background-color: #fff;
+    border: 2px solid #3182ce;
+    border-radius: 8px;
     padding: 20px;
     margin-bottom: 25px;
+    box-shadow: 0 4px 14px rgba(49, 130, 206, 0.1);
 }
 
 .live-header {
@@ -436,186 +437,206 @@ input:checked + .slider:before {
     margin-bottom: 12px;
 }
 
-.live-badge {
-    display: inline-flex;
+.live-status-left {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    background-color: #ebf8ff;
-    color: #2b6cb0;
-    padding: 6px 14px;
-    border-radius: 20px;
+    gap: 10px;
+}
+
+.live-badge {
+    background-color: #3182ce;
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: bold;
+}
+
+.live-progress-info {
     font-size: 1.1rem;
     font-weight: bold;
 }
 
-.pulse-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: #3182ce;
-    display: inline-block;
-    animation: pulse 1.2s infinite;
-}
-
-@keyframes pulse {
-    0% { transform: scale(0.95); opacity: 0.8; }
-    50% { transform: scale(1.3); opacity: 1; }
-    100% { transform: scale(0.95); opacity: 0.8; }
-}
-
-.live-controls {
+.live-controls-right {
     display: flex;
     align-items: center;
     gap: 16px;
-    flex-wrap: wrap;
 }
 
 .speed-control {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #4a5568;
+}
+
+#speed-display {
+    display: inline-block;
+    min-width: 5.5em;
+    text-align: left;
 }
 
 .speed-control input[type="range"] {
-    width: 100px;
+    width: 90px;
     cursor: pointer;
 }
 
 .skip-btn {
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    padding: 6px 14px;
+    padding: 6px 16px;
+    font-size: 1rem;
+    font-weight: bold;
+    background-color: #edf2f7;
+    border: 1px solid #cbd5e0;
     border-radius: 4px;
-    font-size: 1.05rem;
+    color: #4a5568;
     cursor: pointer;
-    font-family: inherit;
-    transition: background-color 0.2s;
 }
 
 .skip-btn:hover {
-    background-color: var(--btn-hover);
+    background-color: #e2e8f0;
 }
 
-.live-progress-container {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.live-progress-bar {
-    flex: 1;
-    height: 10px;
+.live-progress-track {
+    width: 100%;
+    height: 8px;
     background-color: #edf2f7;
-    border-radius: 5px;
+    border-radius: 4px;
     overflow: hidden;
+    margin-bottom: 16px;
 }
 
 .live-progress-fill {
     height: 100%;
+    width: 0%;
     background-color: #3182ce;
-    transition: width 0.15s ease;
+    transition: width 0.1s linear;
 }
 
-.live-progress-text {
-    font-size: 1.05rem;
+/* ステップ表示エリア */
+.step-container {
+    margin-bottom: 16px;
+}
+
+.step-label {
     font-weight: bold;
-    color: #4a5568;
-    width: 45px;
-    text-align: right;
-}
-
-.live-display-area {
-    background-color: #fff;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 16px;
-    margin-bottom: 14px;
-}
-
-.line-label {
-    font-size: 1rem;
-    font-weight: bold;
-    color: #718096;
-    margin-bottom: 4px;
-}
-
-.current-line-box {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
     color: #2d3748;
+    margin-bottom: 6px;
+}
+
+/* ① 元の文章（1行表示） */
+.current-line-box {
     background-color: #f7fafc;
-    border: 1px solid #edf2f7;
-    padding: 10px 14px;
-    border-radius: 4px;
-    min-height: 48px;
-    word-break: break-all;
-    line-height: 1.5;
-}
-
-.tokenized-line-box {
-    font-size: 1.25rem;
-    min-height: 52px;
-    background-color: #ffffff;
     border: 1px solid #e2e8f0;
-    padding: 10px 14px;
     border-radius: 4px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    line-height: 1.8;
+    padding: 10px 14px;
+    font-size: 1.15rem;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow-x: auto;
+    color: #2d3748;
 }
 
-.token-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 8px;
+/* ② 形態素分解（スラッシュ区切り） */
+.tokenized-line-box {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e0;
     border-radius: 4px;
+    padding: 12px 14px;
+    font-size: 1.2rem;
+    line-height: 2.0;
+    min-height: 60px;
+    max-height: 160px;
+    overflow-y: auto;
+    word-break: break-all;
+}
+
+/* 素の文章の時点（隙間ゼロ・完全な地の文） */
+.token-raw {
+    display: inline;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    font-weight: normal;
+    color: #2d3748;
+}
+
+.token-item {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
     font-weight: bold;
-    position: relative;
+    margin: 1px 2px;
     transition: transform 0.2s ease;
 }
 
-.token-chip.noun    { background-color: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
-.token-chip.verb    { background-color: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
-.token-chip.adj     { background-color: #fffaf0; color: #9c4221; border: 1px solid #feebc8; }
-.token-chip.pronoun { background-color: #faf5ff; color: #553c9e; border: 1px solid #e9d8fd; }
-.token-chip.adverb  { background-color: #fff5f7; color: #97266d; border: 1px solid #fed7e2; }
-.token-chip.interj  { background-color: #e6fffa; color: #234e52; border: 1px solid #b2f5ea; }
+/* 初出単語の演出（拡大なし、ゴールドの光彩・枠線発光のみ） */
+@keyframes popNew {
+    0% { box-shadow: 0 0 0 rgba(236, 201, 75, 0); }
+    40% { box-shadow: 0 0 10px rgba(236, 201, 75, 0.95); }
+    100% { box-shadow: 0 0 4px rgba(236, 201, 75, 0.4); }
+}
 
-.token-chip.excluded {
-    background-color: #edf2f7;
+.token-item.token-first-appearance {
+    animation: popNew 0.5s ease-out;
+    border-color: #d69e2e !important;
+}
+
+.token-slash {
+    display: inline-block;
     color: #a0aec0;
-    border: 1px solid #e2e8f0;
+    font-weight: normal;
+    margin: 0 4px;
+}
+
+.token-noun {
+    background-color: #ebf8ff;
+    color: var(--color-noun);
+    border: 1px solid #bee3f8;
+}
+
+.token-verb {
+    background-color: #f0fff4;
+    color: var(--color-verb);
+    border: 1px solid #c6f6d5;
+}
+
+.token-adj {
+    background-color: #fffaf0;
+    color: var(--color-adj);
+    border: 1px solid #feebc8;
+}
+
+.token-pronoun {
+    background-color: #faf5ff;
+    color: var(--color-pronoun);
+    border: 1px solid #e9d8fd;
+}
+
+.token-adverb {
+    background-color: #fff5f7;
+    color: var(--color-adverb);
+    border: 1px solid #fed7e2;
+}
+
+/* ③ 対象品詞以外は打ち消し線のみ */
+.token-excluded {
+    color: var(--color-stop);
     text-decoration: line-through;
+    opacity: 0.7;
     font-weight: normal;
-}
-
-.token-chip.pop {
-    animation: popEffect 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes popEffect {
-    0% { transform: scale(0.7); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-}
-
-.slash-sep {
-    color: #cbd5e0;
-    user-select: none;
-    font-weight: normal;
-    padding: 0 1px;
 }
 
 .live-legend {
     display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-    font-size: 1.05rem;
+    gap: 16px;
+    font-size: 0.95rem;
     color: #4a5568;
-    margin-top: 4px;
+    flex-wrap: wrap;
+    margin-top: 10px;
 }
 
 .legend-item {
@@ -861,7 +882,6 @@ input:checked + .slider:before {
 .bar-row-fill.adj     { background-color: var(--color-adj); }
 .bar-row-fill.pronoun { background-color: var(--color-pronoun); }
 .bar-row-fill.adverb  { background-color: var(--color-adverb); }
-.bar-row-fill.interj  { background-color: var(--color-interj); }
 
 .bar-row-value {
     position: absolute;

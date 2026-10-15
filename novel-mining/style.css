@@ -174,6 +174,7 @@ input[type="file"] {
 .adj-label  { background-color: #fffaf0; color: var(--color-adj);  border: 1px solid #feebc8; }
 .pronoun-label { background-color: #faf5ff; color: var(--color-pronoun); border: 1px solid #e9d8fd; }
 .adverb-label  { background-color: #fff5f7; color: var(--color-adverb);  border: 1px solid #fed7e2; }
+.stopword-label { background-color: #f7fafc; color: #4a5568; border: 1px solid #cbd5e0; }
 
 /* コントロールパネル（左: 解析する / 右: 解析の様子を見る） */
 .control-panel {
