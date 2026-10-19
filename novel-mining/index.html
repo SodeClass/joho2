@@ -13,8 +13,8 @@
     <script src="./stopwords.js?v=1"></script>
     <script src="./sudachi-tokenizer.js?v=1"></script>
 
-    <link rel="stylesheet" href="./style.css?v=6">
-    <script src="./app.js?v=6" defer></script>
+    <link rel="stylesheet" href="./style.css?v=12">
+    <script src="./app.js?v=12" defer></script>
 </head>
 <body>
 
@@ -33,7 +33,7 @@
         <div class="drop-zone" id="drop-zone">
             <span class="drop-zone-icon">📁</span>
             <div class="drop-zone-text" id="drop-zone-text">青空文庫の <strong>zipファイル</strong> または <strong>txtファイル</strong> を選択</div>
-            <div class="drop-zone-hint">（Shift_JIS 自動対応 / クリックまたはドラッグ＆ドロップ）</div>
+            <div class="drop-zone-hint">（クリックまたはドラッグ＆ドロップ）</div>
             <input type="file" id="file-input" accept=".zip,.txt">
         </div>
         <div id="file-info" class="file-info" style="display: none;">
@@ -161,6 +161,11 @@
     <!-- 解析結果エリア（アニメーション中もリアルタイムに都度カウント更新） -->
     <div class="result-section" id="result-section">
         
+        <!-- 作品情報（青空文庫: 「題名」作者） -->
+        <div class="book-info" id="book-info" style="display: none;">
+            <span class="book-meta-text" id="book-meta-text"></span>
+        </div>
+
         <!-- 合計単語数（abcounterスタイル。※総文字数は非表示） -->
         <div class="total-display">
             <span class="total-label">抽出単語 合計</span>

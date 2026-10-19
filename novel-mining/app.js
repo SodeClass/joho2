@@ -215,6 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Results (abcounter仕様)
     const resultSection = document.getElementById('result-section');
+    const bookInfo = document.getElementById('book-info');
+    const bookMetaText = document.getElementById('book-meta-text');
     const chartSection = document.getElementById('chart-section');
     const tableSection = document.getElementById('table-section');
     const viewBtnRanking = document.getElementById('view-btn-ranking');
@@ -347,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function handleFile(file) {
-        showStatus(`ファイル「${file.name}」を展開・読み込み中...`);
         try {
             const isZip = file.name.toLowerCase().endsWith('.zip');
             if (isZip) {
@@ -376,6 +377,13 @@ document.addEventListener('DOMContentLoaded', () => {
             fileNameDisplay.textContent = file.name;
             fileInfo.style.display = 'block';
             dropZoneText.innerHTML = `選択中: <strong>${escapeHtml(file.name)}</strong>`;
+
+            // 新規ファイル選択時は前回の結果・タイトル表示をクリア（抽出処理は「解析する」押下まで行わない）
+            if (resultSection) resultSection.style.display = 'none';
+            if (livePanel) livePanel.style.display = 'none';
+            if (bookInfo) bookInfo.style.display = 'none';
+            if (bookMetaText) bookMetaText.textContent = '';
+
             hideStatus();
         } catch (err) {
             console.error(err);
@@ -393,6 +401,96 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e2) {
                 return new TextDecoder('shift-jis').decode(buf);
             }
+        }
+    }
+
+    // 外国文学の原題行判定（英字・ラテン文字・キリル文字等のアルファベットが主体か）
+    function isForeignTitle(line) {
+        if (!line) return false;
+        const cleaned = line.replace(/（[^）]*訳）|\([^)]*訳\)/g, '').trim();
+        const latinCount = (cleaned.match(/[A-Za-z\u00C0-\u024F\u0400-\u04FF]/g) || []).length;
+        const japaneseCount = (cleaned.match(/[\u3040-\u309F\u4E00-\u9FFF]/g) || []).length;
+        return latinCount > 0 && latinCount >= japaneseCount;
+    }
+
+    // 青空文庫メタ情報（題名・作者）の抽出
+    function extractAozoraMeta(rawText) {
+        if (!rawText) return { title: '', author: '' };
+        let headerText = rawText;
+        const borderMatch = rawText.match(/[-─―]{10,}/);
+        if (borderMatch && borderMatch.index !== undefined) {
+            headerText = rawText.substring(0, borderMatch.index);
+        }
+        const lines = headerText
+            .replace(/^\uFEFF/, '')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n')
+            .split('\n');
+
+        const nonEmpty = [];
+        for (const line of lines) {
+            const cleaned = line
+                .replace(/《.*?》/g, '')
+                .replace(/｜/g, '')
+                .replace(/［＃.*?］/g, '')
+                .replace(/〔.*?〕/g, '')
+                .trim();
+            if (cleaned.length > 0 && !cleaned.startsWith('【') && !cleaned.startsWith('-')) {
+                nonEmpty.push(cleaned);
+                if (nonEmpty.length >= 4) break;
+            }
+        }
+
+        if (nonEmpty.length === 0) return { title: '', author: '' };
+        const title = nonEmpty[0] || '';
+
+        let author = '';
+        if (nonEmpty.length >= 3 && isForeignTitle(nonEmpty[1])) {
+            // 外国文学（2行目が原題、3行目が著者名: 「カタカナ名　原綴り」の全角スペース前を取得）
+            const line3 = nonEmpty[2];
+            if (line3.includes('　')) {
+                author = line3.split('　')[0].trim();
+            } else {
+                const m = line3.match(/^([^\s]+)[\s]+[A-Za-z]/);
+                author = m ? m[1].trim() : line3.trim();
+            }
+        } else {
+            // 日本文学（2行目が著者名）
+            author = nonEmpty[1] || '';
+        }
+
+        return {
+            title,
+            author
+        };
+    }
+
+    function formatAozoraTitleAuthor(title, author) {
+        if (!title && !author) return '';
+        let formattedTitle = title ? title.trim() : '';
+        if (formattedTitle) {
+            if (!(formattedTitle.startsWith('「') && formattedTitle.endsWith('」')) &&
+                !(formattedTitle.startsWith('『') && formattedTitle.endsWith('』'))) {
+                formattedTitle = `「${formattedTitle}」`;
+            }
+        }
+        const formattedAuthor = author ? author.trim() : '';
+        if (formattedTitle && formattedAuthor) {
+            return `${formattedTitle} ${formattedAuthor}`;
+        }
+        return formattedTitle || formattedAuthor || '';
+    }
+
+    function updateBookMetaDisplay(rawText) {
+        if (!bookInfo || !bookMetaText) return;
+        const meta = extractAozoraMeta(rawText);
+        const metaText = formatAozoraTitleAuthor(meta.title, meta.author);
+        if (metaText) {
+            bookMetaText.textContent = metaText;
+            bookInfo.style.display = 'block';
+        } else {
+            bookMetaText.textContent = '';
+            bookInfo.style.display = 'none';
         }
     }
 
@@ -506,6 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
         analyzeBtn.disabled = true;
         skipAnimationRequested = false;
         showAnalyzeProgress(0);
+        updateBookMetaDisplay(currentLoadedText);
 
         try {
             const modeSelect = document.getElementById('sudachi-mode-select');
@@ -517,23 +616,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 showStatus('Sudachi 辞書の準備を待っています...（完了次第自動で開始）', true);
             }
             const t = await initSudachi();
-            showStatus('青空文庫テキストをクレンジング中...', false);
+            hideStatus();
             const cleanedText = cleanAozoraText(currentLoadedText);
 
             if (!cleanedText) {
                 alert('クレンジング後にテキストが空になりました。');
-                hideStatus();
                 hideAnalyzeProgress();
                 return;
             }
 
-            showStatus('Sudachi で形態素解析を実行中...', false);
             const tokens = await (t.tokenizeAsync
                 ? t.tokenizeAsync(cleanedText, undefined, (percent) => {
                     showAnalyzeProgress(percent);
                 })
                 : Promise.resolve(t.tokenize(cleanedText)));
-            hideStatus();
 
             if (liveModeToggle.checked) {
                 await runLiveStepAnimation(cleanedText, tokens);
@@ -560,6 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // アニメーション可視化（素の文章 → スラッシュ挿入 → 打ち消し線 ＆ 初出ポップ演出 ＆ 都度グラフカウント）
     async function runLiveStepAnimation(cleanedText, tokens) {
         livePanel.style.display = 'block';
+        updateBookMetaDisplay(currentLoadedText);
         resultSection.style.display = 'block';
         tokenizedLineBox.innerHTML = '';
         currentLineBox.textContent = '（解析開始）';
@@ -719,6 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         renderChartAndTable(wordCounts, wordPos, total);
+        updateBookMetaDisplay(currentLoadedText);
         resultSection.style.display = 'block';
     }
 

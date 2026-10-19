@@ -649,6 +649,21 @@ input:checked + .slider:before {
     margin-top: 20px;
 }
 
+/* 作品情報（青空文庫: 「題名」作者） */
+.book-info {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.book-meta-text {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-color);
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
 .total-display {
     text-align: center;
     margin-bottom: 24px;
