@@ -138,6 +138,35 @@
         };
     }
 
+    function splitTextIntoChunks(text, maxChars = 8000) {
+        if (!text || text.length <= maxChars) return [text];
+        const chunks = [];
+        let start = 0;
+        while (start < text.length) {
+            if (text.length - start <= maxChars) {
+                chunks.push(text.slice(start));
+                break;
+            }
+            const searchRegion = text.slice(start, start + maxChars);
+            let splitIdx = -1;
+            const lastNewline = searchRegion.lastIndexOf('\n');
+            if (lastNewline > maxChars * 0.5) {
+                splitIdx = lastNewline + 1;
+            } else {
+                const match = searchRegion.match(/[。！？][^。！？]*$/);
+                if (match && match.index > maxChars * 0.4) {
+                    splitIdx = match.index + 1;
+                }
+            }
+            if (splitIdx === -1) {
+                splitIdx = maxChars;
+            }
+            chunks.push(text.slice(start, start + splitIdx));
+            start += splitIdx;
+        }
+        return chunks;
+    }
+
     let sudachiInstance = null;
     let currentMode = 2; // TokenizeMode.C (長単位)
     let initPromise = null;
@@ -196,9 +225,67 @@
         },
         tokenize(text, mode = currentMode) {
             if (!sudachiInstance) throw new Error('Sudachi はまだ初期化されていません');
+            if (!text) return [];
+
             const targetMode = Number(mode !== undefined ? mode : currentMode);
-            const rawTokens = sudachiInstance.tokenize_raw(text, targetMode);
-            return rawTokens.map(adaptSudachiToken);
+            const chunks = splitTextIntoChunks(text, 4000);
+            const allTokens = [];
+
+            for (const chunk of chunks) {
+                if (!chunk) continue;
+                try {
+                    const rawTokens = sudachiInstance.tokenize_raw(chunk, targetMode);
+                    if (Array.isArray(rawTokens)) {
+                        for (let i = 0; i < rawTokens.length; i++) {
+                            allTokens.push(adaptSudachiToken(rawTokens[i]));
+                        }
+                    }
+                } catch (err) {
+                    const msg = (err && (err.message || err.details || err.error)) || String(err);
+                    throw new Error(`Sudachi 解析エラー: ${msg}`);
+                }
+            }
+
+            return allTokens;
+        },
+        async tokenizeAsync(text, mode = currentMode, onProgress = null) {
+            if (!sudachiInstance) throw new Error('Sudachi はまだ初期化されていません');
+            if (!text) {
+                if (onProgress) onProgress(100);
+                return [];
+            }
+
+            const targetMode = Number(mode !== undefined ? mode : currentMode);
+            const chunks = splitTextIntoChunks(text, 4000);
+            const allTokens = [];
+            const totalChunks = chunks.length;
+
+            if (onProgress) onProgress(0);
+
+            for (let i = 0; i < totalChunks; i++) {
+                const chunk = chunks[i];
+                if (chunk) {
+                    try {
+                        const rawTokens = sudachiInstance.tokenize_raw(chunk, targetMode);
+                        if (Array.isArray(rawTokens)) {
+                            for (let j = 0; j < rawTokens.length; j++) {
+                                allTokens.push(adaptSudachiToken(rawTokens[j]));
+                            }
+                        }
+                    } catch (err) {
+                        const msg = (err && (err.message || err.details || err.error)) || String(err);
+                        throw new Error(`Sudachi 解析エラー: ${msg}`);
+                    }
+                }
+                const percent = Math.min(100, Math.round(((i + 1) / totalChunks) * 100));
+                if (onProgress) {
+                    onProgress(percent);
+                }
+                // UI再描画を許可するためにイベントループに yield
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+
+            return allTokens;
         }
     };
 

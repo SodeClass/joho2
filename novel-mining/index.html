@@ -84,6 +84,11 @@
         <div class="control-panel">
             <div class="action-left">
                 <button type="button" id="analyze-btn" class="analyze-btn">解析する</button>
+                <div id="analyze-progress-info" class="analyze-progress-info" style="display: none;">
+                    <span class="analyze-spinner"></span>
+                    <span id="analyze-progress-percent" class="analyze-progress-percent">0%</span>
+                    <span id="analyze-progress-label" class="analyze-progress-label">解析中</span>
+                </div>
             </div>
 
             <div class="switch-right">
@@ -180,7 +185,7 @@
             <div class="chart-header">
                 <div class="chart-limit-wrap">
                     <label for="chart-n-input">表示件数: 上位</label>
-                    <input type="number" id="chart-n-input" min="1" max="1000" value="30">
+                    <input type="number" id="chart-n-input" min="0" max="1000" value="30">
                     <span>単語</span>
                 </div>
             </div>
@@ -206,7 +211,7 @@
             <div class="table-header">
                 <div class="table-limit-wrap">
                     <label for="table-n-input">表示件数: 上位</label>
-                    <input type="number" id="table-n-input" min="1" max="1000" value="30">
+                    <input type="number" id="table-n-input" min="0" max="1000" value="30">
                     <span>単語</span>
                 </div>
             </div>

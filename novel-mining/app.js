@@ -179,6 +179,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInfo = document.getElementById('file-info');
     const fileNameDisplay = document.getElementById('file-name-display');
     const analyzeBtn = document.getElementById('analyze-btn');
+    const analyzeProgressInfo = document.getElementById('analyze-progress-info');
+    const analyzeProgressPercent = document.getElementById('analyze-progress-percent');
+    const analyzeProgressLabel = document.getElementById('analyze-progress-label');
     const liveModeToggle = document.getElementById('live-mode-toggle');
 
     // POS Checkboxes
@@ -466,6 +469,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return { isTarget: true, word: basic, pos: assignedPos };
     }
 
+    function showAnalyzeProgress(percent = 0, label = '解析中') {
+        if (analyzeProgressInfo) {
+            analyzeProgressInfo.style.display = 'inline-flex';
+        }
+        if (analyzeProgressPercent) {
+            analyzeProgressPercent.textContent = `${percent}%`;
+        }
+        if (analyzeProgressLabel) {
+            analyzeProgressLabel.textContent = label;
+        }
+    }
+
+    function hideAnalyzeProgress() {
+        if (analyzeProgressInfo) {
+            analyzeProgressInfo.style.display = 'none';
+        }
+    }
+
     skipBtn.addEventListener('click', () => {
         skipAnimationRequested = true;
     });
@@ -484,6 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         analyzeBtn.disabled = true;
         skipAnimationRequested = false;
+        showAnalyzeProgress(0);
 
         try {
             const modeSelect = document.getElementById('sudachi-mode-select');
@@ -501,11 +523,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!cleanedText) {
                 alert('クレンジング後にテキストが空になりました。');
                 hideStatus();
+                hideAnalyzeProgress();
                 return;
             }
 
             showStatus('Sudachi で形態素解析を実行中...', false);
-            const tokens = t.tokenize(cleanedText);
+            const tokens = await (t.tokenizeAsync
+                ? t.tokenizeAsync(cleanedText, undefined, (percent) => {
+                    showAnalyzeProgress(percent);
+                })
+                : Promise.resolve(t.tokenize(cleanedText)));
             hideStatus();
 
             if (liveModeToggle.checked) {
@@ -514,11 +541,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // オフのときはアニメーション欄を非表示にする
                 livePanel.style.display = 'none';
                 updateFullResults(tokens);
+                showAnalyzeProgress(100, '完了');
+                setTimeout(() => {
+                    hideAnalyzeProgress();
+                }, 1000);
             }
         } catch (err) {
             console.error(err);
-            alert('解析中にエラーが発生しました: ' + err.message);
+            const msg = (err && (err.message || err.details || err.error)) || String(err);
+            alert('解析中にエラーが発生しました: ' + msg);
             hideStatus();
+            hideAnalyzeProgress();
         } finally {
             analyzeBtn.disabled = false;
         }
@@ -645,6 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const progress = Math.min(100, Math.round((processedTokensCount / totalTokens) * 100));
                 liveProgressFill.style.width = progress + '%';
                 liveProgressText.textContent = `${progress}% (抽出: ${runningTotal}語)`;
+                showAnalyzeProgress(progress);
 
                 if (currentDelay > 0) {
                     await new Promise(r => setTimeout(r, currentDelay));
@@ -660,6 +694,10 @@ document.addEventListener('DOMContentLoaded', () => {
         liveProgressFill.style.width = '100%';
         liveProgressText.textContent = '100% 完了';
         liveBadge.textContent = '解析完了！';
+        showAnalyzeProgress(100, '完了');
+        setTimeout(() => {
+            hideAnalyzeProgress();
+        }, 1500);
 
         // 最終集計の完全反映
         updateFullResults(tokens);
@@ -706,7 +744,8 @@ document.addEventListener('DOMContentLoaded', () => {
         uniqueCountDisplay.textContent = uniqueCount.toLocaleString();
 
         // 上位 n 件の取得（グラフ・ランキング共通仕様）
-        const n = Math.max(1, parseInt(chartNInput?.value, 10) || parseInt(tableNInput?.value, 10) || 30);
+        const parsedN = parseInt(chartNInput?.value !== '' ? chartNInput?.value : tableNInput?.value, 10);
+        const n = isNaN(parsedN) ? 30 : Math.max(0, parsedN);
         const topWords = latestSortedList.slice(0, n);
 
         // 最長単語幅に応じたラベル幅・グラフ左余白の動的調整
@@ -746,40 +785,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 横棒バーの生成（四角いバー・品詞色分け・先端に個数常時表示）
         barsContainer.innerHTML = '';
-        topWords.forEach(item => {
-            const p = total > 0 ? (item.count / total) * 100 : 0;
-            const barWidth = axisMax > 0 ? (p / axisMax) * 100 : 0;
+        if (topWords.length === 0) {
+            const emptyMsg = latestSortedList.length === 0
+                ? '抽出された単語がありませんでした。'
+                : '表示件数が 0 件に設定されています。';
+            barsContainer.innerHTML = `<div style="text-align:center; padding: 30px; color: #888;">${emptyMsg}</div>`;
+        } else {
+            topWords.forEach(item => {
+                const p = total > 0 ? (item.count / total) * 100 : 0;
+                const barWidth = axisMax > 0 ? (p / axisMax) * 100 : 0;
 
-            // 品詞別クラス
-            let posClass = 'noun';
-            if (item.pos === '動詞') posClass = 'verb';
-            else if (item.pos === '形容詞') posClass = 'adj';
-            else if (item.pos === '代名詞') posClass = 'pronoun';
-            else if (item.pos === '副詞') posClass = 'adverb';
+                // 品詞別クラス
+                let posClass = 'noun';
+                if (item.pos === '動詞') posClass = 'verb';
+                else if (item.pos === '形容詞') posClass = 'adj';
+                else if (item.pos === '代名詞') posClass = 'pronoun';
+                else if (item.pos === '副詞') posClass = 'adverb';
 
-            const row = document.createElement('div');
-            row.className = 'bar-row';
-            row.innerHTML = `
-                <span class="bar-row-label" title="${escapeHtml(item.word)}">${escapeHtml(item.word)}</span>
-                <div class="bar-row-track">
-                    <div class="bar-row-fill ${posClass}" style="width: ${barWidth}%;">
-                        <div class="tooltip-h">${escapeHtml(item.word)}: ${p.toFixed(1)}% (${item.count}回)</div>
-                        <span class="bar-row-value">${item.count}回 (${p.toFixed(1)}%)</span>
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+                row.innerHTML = `
+                    <span class="bar-row-label" title="${escapeHtml(item.word)}">${escapeHtml(item.word)}</span>
+                    <div class="bar-row-track">
+                        <div class="bar-row-fill ${posClass}" style="width: ${barWidth}%;">
+                            <div class="tooltip-h">${escapeHtml(item.word)}: ${p.toFixed(1)}% (${item.count}回)</div>
+                            <span class="bar-row-value">${item.count}回 (${p.toFixed(1)}%)</span>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
-            row.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const wasShowing = row.classList.contains('show-tooltip');
-                document.querySelectorAll('.bar-row').forEach(r => r.classList.remove('show-tooltip'));
-                if (!wasShowing) {
-                    row.classList.add('show-tooltip');
-                }
+                row.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const wasShowing = row.classList.contains('show-tooltip');
+                    document.querySelectorAll('.bar-row').forEach(r => r.classList.remove('show-tooltip'));
+                    if (!wasShowing) {
+                        row.classList.add('show-tooltip');
+                    }
+                });
+
+                barsContainer.appendChild(row);
             });
-
-            barsContainer.appendChild(row);
-        });
+        }
 
         // ランキング表の生成（上位n件）
         const tableWords = latestSortedList.slice(0, n);
@@ -800,15 +846,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (tableWords.length === 0) {
-            tableHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#888;">抽出された単語がありませんでした。</td></tr>`;
+            const emptyMsg = latestSortedList.length === 0
+                ? '抽出された単語がありませんでした。'
+                : '表示件数が 0 件に設定されています。';
+            tableHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#888;">${emptyMsg}</td></tr>`;
         }
 
         rankingTbody.innerHTML = tableHTML;
     }
 
     // 上位n件切り替えイベント（グラフ・ランキング連動）
-    const updateLimit = (val) => {
-        const num = Math.max(1, parseInt(val, 10) || 30);
+    const updateLimit = (val, isChange = false) => {
+        const parsed = parseInt(val, 10);
+        if (isNaN(parsed)) {
+            if (isChange) {
+                const defaultVal = 30;
+                if (chartNInput) chartNInput.value = defaultVal;
+                if (tableNInput) tableNInput.value = defaultVal;
+                updateLimit(defaultVal);
+            }
+            return;
+        }
+        const num = Math.max(0, parsed);
         if (chartNInput && parseInt(chartNInput.value, 10) !== num) chartNInput.value = num;
         if (tableNInput && parseInt(tableNInput.value, 10) !== num) tableNInput.value = num;
         if (latestSortedList.length > 0) {
@@ -822,12 +881,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     if (chartNInput) {
-        chartNInput.addEventListener('input', () => updateLimit(chartNInput.value));
-        chartNInput.addEventListener('change', () => updateLimit(chartNInput.value));
+        chartNInput.addEventListener('input', () => updateLimit(chartNInput.value, false));
+        chartNInput.addEventListener('change', () => updateLimit(chartNInput.value, true));
     }
     if (tableNInput) {
-        tableNInput.addEventListener('input', () => updateLimit(tableNInput.value));
-        tableNInput.addEventListener('change', () => updateLimit(tableNInput.value));
+        tableNInput.addEventListener('input', () => updateLimit(tableNInput.value, false));
+        tableNInput.addEventListener('change', () => updateLimit(tableNInput.value, true));
     }
 
     // 画面外クリックでフキダシを閉じる

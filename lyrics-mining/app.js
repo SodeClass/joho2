@@ -198,6 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Controls
     const analyzeBtn = document.getElementById('analyze-btn');
+    const analyzeProgressInfo = document.getElementById('analyze-progress-info');
+    const analyzeProgressPercent = document.getElementById('analyze-progress-percent');
+    const analyzeProgressLabel = document.getElementById('analyze-progress-label');
     const liveModeToggle = document.getElementById('live-mode-toggle');
 
     // Live Panel
@@ -618,6 +621,24 @@ document.addEventListener('DOMContentLoaded', () => {
         skipAnimationRequested = true;
     });
 
+    function showAnalyzeProgress(percent = 0, label = '解析中') {
+        if (analyzeProgressInfo) {
+            analyzeProgressInfo.style.display = 'inline-flex';
+        }
+        if (analyzeProgressPercent) {
+            analyzeProgressPercent.textContent = `${percent}%`;
+        }
+        if (analyzeProgressLabel) {
+            analyzeProgressLabel.textContent = label;
+        }
+    }
+
+    function hideAnalyzeProgress() {
+        if (analyzeProgressInfo) {
+            analyzeProgressInfo.style.display = 'none';
+        }
+    }
+
     // ==========================================
     // 解析実行ボタン
     // ==========================================
@@ -635,6 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         analyzeBtn.disabled = true;
         skipAnimationRequested = false;
+        showAnalyzeProgress(0);
 
         try {
             const modeSelect = document.getElementById('sudachi-mode-select');
@@ -659,6 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (processedSongs.length === 0) {
                 alert('クレンジング後に歌詞テキストが空になりました。');
                 hideStatus();
+                hideAnalyzeProgress();
                 return;
             }
 
@@ -668,12 +691,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 await runLiveStepAnimation(processedSongs, t);
             } else {
                 livePanel.style.display = 'none';
-                runFastAnalysis(processedSongs, t);
+                await runFastAnalysis(processedSongs, t);
             }
         } catch (err) {
             console.error(err);
-            alert('解析中にエラーが発生しました: ' + err.message);
+            const msg = (err && (err.message || err.details || err.error)) || String(err);
+            alert('解析中にエラーが発生しました: ' + msg);
             hideStatus();
+            hideAnalyzeProgress();
         } finally {
             analyzeBtn.disabled = false;
         }
@@ -682,11 +707,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 高速一括解析（アニメーションOFF時）
     // ==========================================
-    function runFastAnalysis(processedSongs, t) {
+    async function runFastAnalysis(processedSongs, t) {
         showStatus('歌詞を形態素解析・集計中...');
         const wordCounts = {};
         const wordPos = {};
         let totalCount = 0;
+
+        let totalLines = 0;
+        for (const song of processedSongs) {
+            totalLines += song.lines.length;
+        }
+        let processedLines = 0;
 
         for (const song of processedSongs) {
             for (const line of song.lines) {
@@ -699,8 +730,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         totalCount++;
                     }
                 }
+                processedLines++;
+                if (totalLines > 0 && processedLines % 5 === 0) {
+                    const percent = Math.min(100, Math.round((processedLines / totalLines) * 100));
+                    showAnalyzeProgress(percent);
+                }
             }
         }
+
+        showAnalyzeProgress(100, '完了');
+        setTimeout(() => {
+            hideAnalyzeProgress();
+        }, 1000);
 
         hideStatus();
         resultSection.style.display = 'block';
@@ -830,6 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const progress = totalTokens > 0 ? Math.min(100, Math.round((processedTokensCount / totalTokens) * 100)) : 100;
                     liveProgressFill.style.width = progress + '%';
                     liveProgressText.textContent = `${progress}% (抽出: ${runningTotal}語)`;
+                    showAnalyzeProgress(progress);
 
                     if (currentDelay > 0) {
                         await new Promise(r => setTimeout(r, currentDelay));
@@ -843,7 +885,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (skipAnimationRequested) {
-            runFastAnalysis(processedSongs, t);
+            await runFastAnalysis(processedSongs, t);
             liveProgressFill.style.width = '100%';
             liveProgressText.textContent = '100% 完了';
             currentLineBox.textContent = '（全曲の解析完了）';
@@ -854,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
             liveProgressText.textContent = '100% 完了';
             currentLineBox.textContent = '（全曲の解析完了）';
             liveBadge.textContent = '解析完了！';
-            runFastAnalysis(processedSongs, t);
+            await runFastAnalysis(processedSongs, t);
         }
     }
 
@@ -875,7 +917,8 @@ document.addEventListener('DOMContentLoaded', () => {
         totalCountDisplay.textContent = total.toLocaleString();
         uniqueCountDisplay.textContent = uniqueCount.toLocaleString();
 
-        const n = Math.max(1, parseInt(chartNInput?.value, 10) || parseInt(tableNInput?.value, 10) || 30);
+        const parsedN = parseInt(chartNInput?.value !== '' ? chartNInput?.value : tableNInput?.value, 10);
+        const n = isNaN(parsedN) ? 30 : Math.max(0, parsedN);
         const topWords = latestSortedList.slice(0, n);
 
         // ラベル幅の動的調整
@@ -922,34 +965,41 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         barsContainer.innerHTML = '';
-        topWords.forEach(item => {
-            const p = total > 0 ? (item.count / total) * 100 : 0;
-            const barWidth = maxTickValue > 0 ? Math.min(100, (p / maxTickValue) * 100) : 0;
-            const pText = p >= 10 ? p.toFixed(1) : p.toFixed(2);
-            const posClass = POS_COLOR_CLASS[item.pos] || 'noun';
+        if (topWords.length === 0) {
+            const emptyMsg = latestSortedList.length === 0
+                ? '抽出された単語がありませんでした。'
+                : '表示件数が 0 件に設定されています。';
+            barsContainer.innerHTML = `<div style="text-align:center; padding: 30px; color: #888;">${emptyMsg}</div>`;
+        } else {
+            topWords.forEach(item => {
+                const p = total > 0 ? (item.count / total) * 100 : 0;
+                const barWidth = maxTickValue > 0 ? Math.min(100, (p / maxTickValue) * 100) : 0;
+                const pText = p >= 10 ? p.toFixed(1) : p.toFixed(2);
+                const posClass = POS_COLOR_CLASS[item.pos] || 'noun';
 
-            const row = document.createElement('div');
-            row.className = 'bar-row';
-            row.innerHTML = `
-                <div class="bar-row-label" title="${escapeHtml(item.word)}">${escapeHtml(item.word)}</div>
-                <div class="bar-row-track">
-                    <div class="bar-row-fill ${posClass}" style="width: ${barWidth}%;">
-                        <div class="tooltip-h">${escapeHtml(item.word)} (${item.pos}): ${item.count.toLocaleString()}回 (${pText}%)</div>
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+                row.innerHTML = `
+                    <div class="bar-row-label" title="${escapeHtml(item.word)}">${escapeHtml(item.word)}</div>
+                    <div class="bar-row-track">
+                        <div class="bar-row-fill ${posClass}" style="width: ${barWidth}%;">
+                            <div class="tooltip-h">${escapeHtml(item.word)} (${item.pos}): ${item.count.toLocaleString()}回 (${pText}%)</div>
+                        </div>
+                        <div class="bar-row-value">${item.count.toLocaleString()}回 (${pText}%)</div>
                     </div>
-                    <div class="bar-row-value">${item.count.toLocaleString()}回 (${pText}%)</div>
-                </div>
-            `;
+                `;
 
-            row.addEventListener('click', (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.bar-row').forEach(r => {
-                    if (r !== row) r.classList.remove('show-tooltip');
+                row.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.bar-row').forEach(r => {
+                        if (r !== row) r.classList.remove('show-tooltip');
+                    });
+                    row.classList.toggle('show-tooltip');
                 });
-                row.classList.toggle('show-tooltip');
-            });
 
-            barsContainer.appendChild(row);
-        });
+                barsContainer.appendChild(row);
+            });
+        }
 
         // ランキング表の生成
         const tableWords = latestSortedList.slice(0, n);
@@ -970,15 +1020,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (tableWords.length === 0) {
-            tableHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#888;">抽出された単語がありませんでした。</td></tr>`;
+            const emptyMsg = latestSortedList.length === 0
+                ? '抽出された単語がありませんでした。'
+                : '表示件数が 0 件に設定されています。';
+            tableHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#888;">${emptyMsg}</td></tr>`;
         }
 
         rankingTbody.innerHTML = tableHTML;
     }
 
     // 上位N件切り替えイベント（グラフ・ランキング連動）
-    const updateLimit = (val) => {
-        const num = Math.max(1, parseInt(val, 10) || 30);
+    const updateLimit = (val, isChange = false) => {
+        const parsed = parseInt(val, 10);
+        if (isNaN(parsed)) {
+            if (isChange) {
+                const defaultVal = 30;
+                if (chartNInput) chartNInput.value = defaultVal;
+                if (tableNInput) tableNInput.value = defaultVal;
+                updateLimit(defaultVal);
+            }
+            return;
+        }
+        const num = Math.max(0, parsed);
         if (chartNInput && parseInt(chartNInput.value, 10) !== num) chartNInput.value = num;
         if (tableNInput && parseInt(tableNInput.value, 10) !== num) tableNInput.value = num;
         if (latestSortedList.length > 0) {
@@ -992,12 +1055,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     if (chartNInput) {
-        chartNInput.addEventListener('input', () => updateLimit(chartNInput.value));
-        chartNInput.addEventListener('change', () => updateLimit(chartNInput.value));
+        chartNInput.addEventListener('input', () => updateLimit(chartNInput.value, false));
+        chartNInput.addEventListener('change', () => updateLimit(chartNInput.value, true));
     }
     if (tableNInput) {
-        tableNInput.addEventListener('input', () => updateLimit(tableNInput.value));
-        tableNInput.addEventListener('change', () => updateLimit(tableNInput.value));
+        tableNInput.addEventListener('input', () => updateLimit(tableNInput.value, false));
+        tableNInput.addEventListener('change', () => updateLimit(tableNInput.value, true));
     }
 
     document.addEventListener('click', () => {
