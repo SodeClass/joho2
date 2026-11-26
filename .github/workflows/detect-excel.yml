@@ -1,0 +1,54 @@
+name: Detect 3D Model Excel File
+
+on:
+  push:
+    paths:
+      - '3Dmodel-expo/**'
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-excel-info:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect spreadsheet file and update file-info.json
+        run: |
+          python3 -c "
+          import os, json, glob, datetime
+
+          files = glob.glob('3Dmodel-expo/*.xlsx')
+          if not files:
+              files = glob.glob('3Dmodel-expo/*.xls') + glob.glob('3Dmodel-expo/*.csv')
+
+          if files:
+              target_file = os.path.basename(files[0])
+              info = {
+                  'fileName': target_file,
+                  'updatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat()
+              }
+              with open('3Dmodel-expo/file-info.json', 'w', encoding='utf-8') as f:
+                  json.dump(info, f, ensure_ascii=False, indent=2)
+                  f.write('\n')
+              print(f'Detected file: {target_file}')
+          else:
+              print('No spreadsheet file found in 3Dmodel-expo/')
+          "
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add 3Dmodel-expo/file-info.json
+          if git diff --staged --quiet; then
+            echo "No changes in file-info.json"
+          else
+            git commit -m "Auto-update 3Dmodel-expo file-info.json [skip ci]"
+            git push
+          fi

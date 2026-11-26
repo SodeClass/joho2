@@ -1,8 +1,9 @@
 /**
  * 3D作品リンク集 (3D Model Expo)
  * 
- * GitHub APIでディレクトリ内のExcelファイル（.xlsx）を自動検知し、
- * SheetJSでパースしてクラス別・作品一覧のSPAサイトを生成します。
+ * GitHub Actionsが自動生成する file-info.json を参照し、
+ * ディレクトリ内のExcelファイル（.xlsx）を直接フェッチして
+ * クラス別・作品一覧のSPAサイトを高速生成します。（API制限なし）
  */
 
 // ==========================================
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initData();
 });
 // ==========================================
-// データ読み込み処理 (GitHub API & フォールバック)
+// データ読み込み処理 (静的直接読み込み & 自動検知)
 // ==========================================
 function isSpreadsheetFile(filename) {
     if (!filename) return false;
@@ -69,86 +70,41 @@ function isSpreadsheetFile(filename) {
 }
 
 async function initData() {
-    showLoading(true, 'GitHubリポジトリから作品データ（Excel）を探しています...');
+    showLoading(true, '作品データを読み込んでいます...');
     hideError();
     setBadge('loading', 'データ読込中...');
 
     try {
-        const cleanDir = TARGET_DIR ? TARGET_DIR.replace(/^\/+|\/+$/g, '') : '';
-        const apiUrl = cleanDir
-            ? `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${cleanDir}`
-            : `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`;
-        let targetFile = null;
-
-        try {
-            const res = await fetch(apiUrl, {
-                headers: { 'Accept': 'application/vnd.github.v3+json' }
-            });
-
-            if (res.ok) {
-                const files = await res.json();
-                if (Array.isArray(files)) {
-                    // .xlsx を最優先、無ければ .xls や .csv
-                    const xlsxFiles = files.filter(f => f.name && f.name.toLowerCase().endsWith('.xlsx'));
-                    if (xlsxFiles.length > 0) {
-                        targetFile = xlsxFiles[0];
-                    } else {
-                        const otherFiles = files.filter(f => isSpreadsheetFile(f.name));
-                        if (otherFiles.length > 0) targetFile = otherFiles[0];
-                    }
-                }
-            } else if (res.status === 403) {
-                console.warn('GitHub API rate limit exceeded or access forbidden.');
-            }
-        } catch (apiErr) {
-            console.warn('GitHub API fetch failed:', apiErr);
-        }
-
-        // 指定フォルダで見つからず、かつTARGET_DIRがルート以外だった場合、ルートも探索
-        if (!targetFile && cleanDir) {
-            try {
-                const rootApiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`;
-                const rootRes = await fetch(rootApiUrl, {
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
-                });
-                if (rootRes.ok) {
-                    const rootFiles = await rootRes.json();
-                    if (Array.isArray(rootFiles)) {
-                        const rootXlsx = rootFiles.filter(f => f.name && f.name.toLowerCase().endsWith('.xlsx'));
-                        if (rootXlsx.length > 0) {
-                            targetFile = rootXlsx[0];
-                        } else {
-                            const other = rootFiles.filter(f => isSpreadsheetFile(f.name));
-                            if (other.length > 0) targetFile = other[0];
-                        }
-                    }
-                }
-            } catch (rootApiErr) {
-                console.warn('GitHub API root fetch failed:', rootApiErr);
-            }
-        }
-
         let arrayBuffer = null;
+        detectedFileName = '';
 
-        if (targetFile && targetFile.download_url) {
-            detectedFileName = targetFile.name;
-            showLoading(true, `ファイル「${detectedFileName}」をダウンロード中...`);
-            const downloadRes = await fetch(targetFile.download_url);
-            if (!downloadRes.ok) {
-                throw new Error(`ダウンロードに失敗しました (${downloadRes.status})`);
+        // 1. GitHub Actionsが自動生成する file-info.json からファイル名を取得して直接読み込み
+        try {
+            const infoRes = await fetch(`./file-info.json?t=${Date.now()}`);
+            if (infoRes.ok) {
+                const info = await infoRes.json();
+                if (info && info.fileName) {
+                    detectedFileName = info.fileName;
+                    showLoading(true, `ファイル「${detectedFileName}」を読み込んでいます...`);
+                    const fileRes = await fetch(encodeURI(`./${detectedFileName}`));
+                    if (fileRes.ok) {
+                        arrayBuffer = await fileRes.arrayBuffer();
+                    }
+                }
             }
-            arrayBuffer = await downloadRes.arrayBuffer();
-        } else {
-            // ローカルテストや静的配信用フォールバック
+        } catch (infoErr) {
+            console.warn('file-info.json fetch failed, trying fallbacks:', infoErr);
+        }
+
+        // 2. 取得できなかった場合のフォールバック（候補ファイルを直接順次検索）
+        if (!arrayBuffer) {
             const fallbackPaths = [
                 './３Dの新製品　提出用フォーム(1-2).xlsx',
                 './３Dの新製品　提出用フォーム(1-1) (1).xlsx',
-                './sample.xlsx',
                 './data.xlsx',
-                '../sample.xlsx',
+                './sample.xlsx',
                 './sample.csv'
             ];
-            let fallbackSuccess = false;
 
             for (const path of fallbackPaths) {
                 try {
@@ -156,18 +112,16 @@ async function initData() {
                     if (fallbackRes.ok) {
                         arrayBuffer = await fallbackRes.arrayBuffer();
                         detectedFileName = decodeURIComponent(path.split('/').pop());
-                        fallbackSuccess = true;
                         break;
                     }
                 } catch {
                     // 次の候補へ
                 }
             }
+        }
 
-            if (!fallbackSuccess) {
-                const targetLocation = cleanDir ? `${GITHUB_USER}/${GITHUB_REPO}/${cleanDir}` : `${GITHUB_USER}/${GITHUB_REPO}`;
-                throw new Error(`GitHub APIからリポジトリ (${targetLocation}) 内のExcelファイル (.xlsx) を検知できませんでした。ファイルがプッシュされているか、またはAPI制限をご確認ください。`);
-            }
+        if (!arrayBuffer) {
+            throw new Error('3Dmodel-expo フォルダ内に作品データ（.xlsx）が見つかりませんでした。ファイルがプッシュされているかご確認ください。');
         }
 
         parseAndLoadSpreadsheet(arrayBuffer, detectedFileName);
