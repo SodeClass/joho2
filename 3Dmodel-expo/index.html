@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>3D作品リンク集</title>
+
+    <!-- SheetJS (xlsx) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <link rel="stylesheet" href="./style.css">
+    <script src="./app.js" defer></script>
+</head>
+<body>
+
+    <header class="header-container">
+        <h1>3D作品リンク集</h1>
+        <div id="status-badge" class="dic-badge">
+            <span id="badge-dot" class="badge-dot"></span>
+            <span id="badge-text">データ読込中...</span>
+        </div>
+    </header>
+
+    <p id="page-description">生徒が作成した3Dモデル作品のリンク集です。クラスを選択して作品をご覧ください。</p>
+
+    <!-- ローディング表示 -->
+    <div id="loading-box" class="status-box">
+        <span class="spinner"></span>
+        <div class="status-text-wrap">
+            <div id="loading-text">GitHubリポジトリから作品データを読み込んでいます...</div>
+        </div>
+    </div>
+
+    <!-- エラー・手動読み込みパネル（API制限や未プッシュ時用フォールバック） -->
+    <div id="error-box" class="input-card error-card" style="display: none;">
+        <div class="error-header">
+            <span class="error-icon">⚠️</span>
+            <div class="error-title" id="error-title">データの読み込みに失敗しました</div>
+        </div>
+        <p class="error-desc" id="error-desc">
+            GitHub APIからの自動取得ができませんでした。<br>
+            ローカル環境や手動で確認する場合は、以下のボタンからExcelファイル（.xlsx）を選択して読み込んでください。
+        </p>
+        <div class="fallback-upload-area">
+            <label class="btn-primary" for="manual-file">
+                📊 Excelファイル (.xlsx) を選択して開く
+            </label>
+            <input type="file" id="manual-file" accept=".xlsx,.xls,.csv">
+            <button type="button" id="btn-retry-fetch" class="btn-secondary">
+                🔄 もう一度取得を試す
+            </button>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <main id="main-content" style="display: none;">
+
+        <!-- 画面A：トップページ（クラス一覧） -->
+        <section id="view-class-list" class="view-section">
+            <div class="section-header">
+                <h2>クラスを選択してください</h2>
+                <span class="class-summary-text" id="class-summary"></span>
+            </div>
+
+            <div class="class-grid" id="class-grid">
+                <!-- JSで動的にクラスカードを生成 -->
+            </div>
+        </section>
+
+        <!-- 画面B：クラス別作品一覧ページ -->
+        <section id="view-work-list" class="view-section" style="display: none;">
+            <div class="nav-bar">
+                <button type="button" id="btn-back-to-classes" class="btn-back">
+                    <span class="arrow">←</span> トップへ戻る（クラス一覧へ）
+                </button>
+            </div>
+
+            <div class="section-header">
+                <h2 id="current-class-title">〇組の作品一覧</h2>
+                <span class="work-count-badge" id="work-count-badge">0 件</span>
+            </div>
+
+            <div class="work-grid" id="work-grid">
+                <!-- JSで動的に作品カードを生成 -->
+            </div>
+        </section>
+
+        <!-- 該当作品なし表示 -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <span class="empty-icon">📂</span>
+            <p id="empty-message">該当する作品が見つかりませんでした。</p>
+        </div>
+
+    </main>
+
+    <footer class="footer">
+        <p>3D Model Expo &copy; SodeClass</p>
+    </footer>
+
+</body>
+</html>

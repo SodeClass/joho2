@@ -522,7 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 歌詞テキストのクレンジング
     // ==========================================
-    const CREDIT_LINE_REGEX = /^(?:歌手|アーティスト|作詞|作曲|編曲|歌|唄|原曲|作詞者|作曲者|Vocal|Lyricist|Composer|Arranger|Music|Lyrics|JASRAC|NexTone|権利者)[\s　:：]/i;
+    const CREDIT_LINE_REGEX = /^(?:歌手|アーティスト|作詞|作曲|編曲|作詞作曲|作詞・作曲|作詞／作曲|歌|唄|原曲|作詞者|作曲者|曲名|題名|タイトル|Title|Vocal|Lyricist|Composer|Arranger|Music|Lyrics|JASRAC|NexTone|権利者)(?:[\s　:：/／・]|$)/i;
     const STRUCT_TAG_REGEX = /^[(\[【（](?:サビ|大サビ|落ちサビ|Aメロ|Bメロ|Cメロ|Intro|Intro\.|Outro|Verse|Verse\s*\d+|Chorus|Chorus\s*\d+|Bridge|Hook|Interlude|間奏|前奏|後奏|ギターソロ|ソロ|ラップ).*?[)\]】）]$/i;
     const TIMESTAMP_REGEX = /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/g;
     const LRC_TAG_REGEX = /^\[(?:ti|ar|al|by|offset|re|ve):.*\]/i;
@@ -530,10 +530,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function cleanLyricsLines(rawText) {
         const lines = rawText.split(/\r\n|\r|\n/);
         const cleaned = [];
+        let isFirstLine = true;
 
         for (let line of lines) {
             let l = line.trim();
             if (!l) continue;
+
+            // 1行目（題名・タイトル行）の除外
+            if (isFirstLine) {
+                isFirstLine = false;
+                continue;
+            }
 
             // クレジット行の自動除外（歌手・作詞・作曲等）
             if (CREDIT_LINE_REGEX.test(l)) {
