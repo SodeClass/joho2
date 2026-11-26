@@ -32,7 +32,7 @@ const workGrid = document.getElementById('work-grid');
 const classSummary = document.getElementById('class-summary');
 const currentClassTitle = document.getElementById('current-class-title');
 const workCountBadge = document.getElementById('work-count-badge');
-const btnBackToClasses = document.getElementById('btn-back-to-classes');
+const classQuickButtons = document.getElementById('class-quick-buttons');
 const statusBadge = document.getElementById('status-badge');
 const badgeDot = document.getElementById('badge-dot');
 const badgeText = document.getElementById('badge-text');
@@ -43,10 +43,6 @@ const btnRetryFetch = document.getElementById('btn-retry-fetch');
 // 初期化 & イベントリスナー
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    btnBackToClasses.addEventListener('click', () => {
-        navigateToClass(null);
-    });
-
     window.addEventListener('popstate', () => {
         renderCurrentRoute();
     });
@@ -145,6 +141,7 @@ async function initData() {
         } else {
             // ローカルテストや静的配信用フォールバック
             const fallbackPaths = [
+                './３Dの新製品　提出用フォーム(1-2).xlsx',
                 './３Dの新製品　提出用フォーム(1-1) (1).xlsx',
                 './sample.xlsx',
                 './data.xlsx',
@@ -249,7 +246,7 @@ function processParsedData(rows, fileName) {
     const headers = Object.keys(rows[0] || {});
     const classKey = findMatchingKey(headers, ['クラスを選択してください', 'クラス', '学級']);
     const titleKey = findMatchingKey(headers, ['作品タイトル', 'タイトル', '作品名']);
-    const sceneKey = findMatchingKey(headers, ['活用場面', '場面', '活用']);
+    const sceneKey = findMatchingKey(headers, ['使い方', '使いかた', '使用方法', '活用場面', '場面', '活用']);
     const urlKey = findMatchingKey(headers, ['作品のＵＲＬ', '作品のURL', 'ＵＲＬ', 'URL', 'url', 'リンク']);
 
     allWorks = [];
@@ -275,11 +272,11 @@ function processParsedData(rows, fileName) {
 
     if (allWorks.length === 0) {
         showError('有効なデータがありません', '指定のヘッダーに該当する有効なレコードが見つかりませんでした。');
-        setBadge('error', '0件');
+        setBadge('error', 'データなし');
         return;
     }
 
-    setBadge('ready', `${fileName} (${allWorks.length}件)`);
+    setBadge('ready', fileName);
     mainContent.style.display = 'block';
 
     renderCurrentRoute();
@@ -340,7 +337,7 @@ function renderClassList() {
         return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
 
-    classSummary.textContent = `全 ${uniqueClasses.length} クラス / 計 ${allWorks.length} 作品`;
+    classSummary.textContent = `全 ${uniqueClasses.length} クラス`;
     classGrid.innerHTML = '';
 
     if (uniqueClasses.length === 0) {
@@ -349,9 +346,8 @@ function renderClassList() {
     }
 
     uniqueClasses.forEach(cls => {
-        const count = classMap.get(cls);
         const card = document.createElement('a');
-        card.className = 'class-card';
+        card.className = 'class-card btn-class-select';
         card.href = `?class=${encodeURIComponent(cls)}`;
         card.setAttribute('role', 'button');
         card.setAttribute('aria-label', `${cls}の作品一覧へ`);
@@ -362,14 +358,11 @@ function renderClassList() {
         });
 
         card.innerHTML = `
-            <div class="class-card-header">
-                <span class="class-card-badge">作品数</span>
-                <span class="work-count-badge">${count} 件</span>
-            </div>
-            <div class="class-card-title">${escapeHtml(cls)}</div>
-            <div class="class-card-link-text">
-                <span>${escapeHtml(cls)}のページへ</span>
-                <span class="arrow">→</span>
+            <div class="class-card-body">
+                <div class="class-card-title">${escapeHtml(cls)}</div>
+                <div class="class-card-btn-action">
+                    <span>このクラスを見る</span>
+                </div>
             </div>
         `;
 
@@ -385,8 +378,38 @@ function renderWorkList(className) {
 
     currentClassTitle.textContent = `${className} の作品一覧`;
 
+    // クラス切り替えバーのボタンを動的生成
+    if (classQuickButtons) {
+        const classMap = new Map();
+        allWorks.forEach(work => {
+            const c = work.className;
+            classMap.set(c, (classMap.get(c) || 0) + 1);
+        });
+
+        const uniqueClasses = Array.from(classMap.keys()).sort((a, b) => {
+            return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        classQuickButtons.innerHTML = '';
+        uniqueClasses.forEach(cls => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `btn-quick-class ${cls === className ? 'active' : ''}`;
+            btn.textContent = cls;
+            btn.setAttribute('aria-pressed', cls === className ? 'true' : 'false');
+            btn.addEventListener('click', () => {
+                if (cls !== className) {
+                    navigateToClass(cls);
+                }
+            });
+            classQuickButtons.appendChild(btn);
+        });
+    }
+
     const filteredWorks = allWorks.filter(w => w.className === className);
-    workCountBadge.textContent = `${filteredWorks.length} 件`;
+    if (workCountBadge) {
+        workCountBadge.textContent = '';
+    }
     workGrid.innerHTML = '';
 
     if (filteredWorks.length === 0) {
@@ -403,7 +426,7 @@ function renderWorkList(className) {
 
         const actionBtnHtml = hasValidUrl
             ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn-view-work">
-                 作品を見る <span class="arrow">↗</span>
+                 作品を見る
                </a>`
             : `<button type="button" class="btn-view-work disabled" disabled>URL未設定</button>`;
 
@@ -412,7 +435,7 @@ function renderWorkList(className) {
                 <span class="work-card-class-badge">${escapeHtml(work.className)}</span>
                 <h3 class="work-title">${escapeHtml(work.title)}</h3>
                 <div class="work-scene-container">
-                    <span class="work-scene-label">【活用場面】</span>
+                    <span class="work-scene-label">【使い方】</span>
                     <p class="work-scene-text">${escapeHtml(work.scene)}</p>
                 </div>
             </div>

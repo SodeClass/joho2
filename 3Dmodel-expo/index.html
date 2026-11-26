@@ -24,11 +24,10 @@
         </div>
     </header>
 
-    <p id="page-description">生徒が作成した3Dモデル作品のリンク集です。クラスを選択して作品をご覧ください。</p>
+    <p id="page-description">授業で制作した3Dモデル作品のリンク集</p>
 
     <!-- ローディング表示 -->
     <div id="loading-box" class="status-box">
-        <span class="spinner"></span>
         <div class="status-text-wrap">
             <div id="loading-text">GitHubリポジトリから作品データを読み込んでいます...</div>
         </div>
@@ -37,7 +36,6 @@
     <!-- エラー・手動読み込みパネル（API制限や未プッシュ時用フォールバック） -->
     <div id="error-box" class="input-card error-card" style="display: none;">
         <div class="error-header">
-            <span class="error-icon">⚠️</span>
             <div class="error-title" id="error-title">データの読み込みに失敗しました</div>
         </div>
         <p class="error-desc" id="error-desc">
@@ -46,11 +44,11 @@
         </p>
         <div class="fallback-upload-area">
             <label class="btn-primary" for="manual-file">
-                📊 Excelファイル (.xlsx) を選択して開く
+                Excelファイル (.xlsx) を選択して開く
             </label>
             <input type="file" id="manual-file" accept=".xlsx,.xls,.csv">
             <button type="button" id="btn-retry-fetch" class="btn-secondary">
-                🔄 もう一度取得を試す
+                もう一度取得を試す
             </button>
         </div>
     </div>
@@ -72,15 +70,16 @@
 
         <!-- 画面B：クラス別作品一覧ページ -->
         <section id="view-work-list" class="view-section" style="display: none;">
-            <div class="nav-bar">
-                <button type="button" id="btn-back-to-classes" class="btn-back">
-                    <span class="arrow">←</span> トップへ戻る（クラス一覧へ）
-                </button>
+            <!-- クラス切り替えボタンバー -->
+            <div class="class-nav-strip" id="class-nav-strip">
+                <span class="class-nav-label">クラス切替:</span>
+                <div id="class-quick-buttons" class="class-quick-buttons">
+                    <!-- JSでクラスボタンを動的に生成 -->
+                </div>
             </div>
 
             <div class="section-header">
                 <h2 id="current-class-title">〇組の作品一覧</h2>
-                <span class="work-count-badge" id="work-count-badge">0 件</span>
             </div>
 
             <div class="work-grid" id="work-grid">
@@ -90,7 +89,6 @@
 
         <!-- 該当作品なし表示 -->
         <div id="empty-state" class="empty-state" style="display: none;">
-            <span class="empty-icon">📂</span>
             <p id="empty-message">該当する作品が見つかりませんでした。</p>
         </div>
 
