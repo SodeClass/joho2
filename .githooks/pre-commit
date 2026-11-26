@@ -1,0 +1,30 @@
+#!/bin/sh
+# 3Dmodel-expo ディレクトリ内の Excel ファイルを検知して file-info.json を自動更新
+python3 -c "
+import os, json, glob
+
+files = glob.glob('3Dmodel-expo/*.xlsx')
+if not files:
+    files = glob.glob('3Dmodel-expo/*.xls') + glob.glob('3Dmodel-expo/*.csv')
+
+if files:
+    target_file = os.path.basename(files[0])
+    info_path = '3Dmodel-expo/file-info.json'
+    current_file = None
+    if os.path.exists(info_path):
+        try:
+            with open(info_path, 'r', encoding='utf-8') as f:
+                current_file = json.load(f).get('fileName')
+        except Exception:
+            pass
+
+    if current_file != target_file:
+        with open(info_path, 'w', encoding='utf-8') as f:
+            json.dump({'fileName': target_file}, f, ensure_ascii=False, indent=2)
+            f.write('\n')
+        print(f'[pre-commit] file-info.json を自動更新しました: {target_file}')
+"
+
+if [ -f "3Dmodel-expo/file-info.json" ]; then
+    git add 3Dmodel-expo/file-info.json
+fi
